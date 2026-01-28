@@ -46,6 +46,7 @@ export default function ProfileLikedFeed({ user }: ProfileLikedFeedProps) {
 
   useEffect(() => {
     loadLikedPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadLikedPosts() {
