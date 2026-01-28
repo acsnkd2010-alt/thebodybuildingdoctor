@@ -34,3 +34,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# WordPress plugin (not needed in Next.js deployment)
+/wordpress-plugin/
+
+# WordPress plugin (not needed in Next.js deployment)
+/wordpress-plugin/
