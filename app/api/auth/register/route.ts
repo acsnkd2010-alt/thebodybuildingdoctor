@@ -30,53 +30,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Register user via WordPress REST API
-    const wpRegisterUrl = `${WORDPRESS_API_URL}/wp-json/wp/v2/users`;
-    
+    // Register user via our BMC WordPress plugin (respects WP "Anyone can register")
+    const wpRegisterUrl = `${WORDPRESS_API_URL}/wp-json/bmc/v1/auth/register`;
+
     const wpResponse = await fetch(wpRegisterUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // WordPress may require authentication for user registration
-        // You might need to add Authorization header with app password
-        ...(process.env.WORDPRESS_API_KEY && {
-          Authorization: `Basic ${Buffer.from(
-            `:${process.env.WORDPRESS_API_KEY}`
-          ).toString('base64')}`,
-        }),
-      },
-      body: JSON.stringify({
-        username,
-        email,
-        password,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password })
     });
 
+    const registerData = await wpResponse.json().catch(() => ({}));
+
     if (!wpResponse.ok) {
-      const error = await wpResponse.json().catch(() => ({}));
       return NextResponse.json(
-        { message: error.message || 'Registration failed' },
+        {
+          message:
+            registerData?.message ||
+            (registerData?.code === 'rest_no_route'
+              ? 'WordPress registration endpoint not found. Activate the BMC plugin on WordPress.'
+              : 'Registration failed')
+        },
         { status: wpResponse.status }
       );
     }
 
-    const wpUser = await wpResponse.json();
+    const wpUser = registerData.user;
 
-    // Auto-login after registration
-    const wpAuthUrl = `${WORDPRESS_API_URL}/wp-json/jwt-auth/v1/token`;
-    const authResponse = await fetch(wpAuthUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username,
-        password,
-      }),
-    });
+    // Auto-login after registration (JWT plugin preferred, fallback to BMC token)
+    const jwtEndpoint = `${WORDPRESS_API_URL}/wp-json/jwt-auth/v1/token`;
+    const bmcEndpoint = `${WORDPRESS_API_URL}/wp-json/bmc/v1/auth/token`;
+
+    async function tryAuth(url: string) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    }
+
+    let { res: authResponse, data: authData } = await tryAuth(jwtEndpoint);
+    if (!authResponse.ok && authData?.code === 'rest_no_route') {
+      ({ res: authResponse, data: authData } = await tryAuth(bmcEndpoint));
+    }
 
     if (!authResponse.ok) {
-      // Registration succeeded but auto-login failed
       return NextResponse.json(
         { message: 'Account created. Please log in manually.' },
         { status: 201 }

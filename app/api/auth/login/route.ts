@@ -23,30 +23,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Authenticate with WordPress REST API
-    // Using Application Password or JWT plugin endpoint
-    const wpAuthUrl = `${WORDPRESS_API_URL}/wp-json/jwt-auth/v1/token`;
-    
-    const wpResponse = await fetch(wpAuthUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: username || email,
-        password,
-      }),
-    });
+    const loginId = username || email;
+
+    // Authenticate with WordPress REST API.
+    // Prefer JWT plugin endpoint; fallback to our BMC plugin endpoint if JWT plugin isn't installed.
+    const jwtEndpoint = `${WORDPRESS_API_URL}/wp-json/jwt-auth/v1/token`;
+    const bmcEndpoint = `${WORDPRESS_API_URL}/wp-json/bmc/v1/auth/token`;
+
+    async function tryAuth(url: string) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginId, password })
+      });
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    }
+
+    let { res: wpResponse, data: wpData } = await tryAuth(jwtEndpoint);
+
+    // If WP returns "No route was found..." then JWT plugin isn't installed/configured.
+    if (!wpResponse.ok && wpData?.code === 'rest_no_route') {
+      ({ res: wpResponse, data: wpData } = await tryAuth(bmcEndpoint));
+    }
 
     if (!wpResponse.ok) {
-      const error = await wpResponse.json().catch(() => ({}));
       return NextResponse.json(
-        { message: error.message || 'Invalid credentials' },
-        { status: 401 }
+        {
+          message:
+            wpData?.message ||
+            (wpData?.code === 'rest_no_route'
+              ? 'WordPress auth endpoint not found. Install/configure JWT plugin or activate BMC plugin.'
+              : 'Invalid credentials')
+        },
+        { status: wpResponse.status || 401 }
       );
     }
 
-    const wpData = await wpResponse.json();
     const wpUser = wpData.user || wpData.data?.user;
 
     if (!wpUser) {

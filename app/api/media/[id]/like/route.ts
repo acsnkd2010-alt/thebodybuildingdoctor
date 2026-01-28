@@ -48,7 +48,7 @@ export async function POST(
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Basic ${Buffer.from(
-              `${user.email}:${process.env.WORDPRESS_API_KEY}`
+              `${user.username ?? user.email}:${process.env.WORDPRESS_API_KEY}`
             ).toString('base64')}`,
           },
         }

@@ -125,6 +125,13 @@ class Bodybuilding_Media_Channel {
             'callback' => array($this, 'generate_jwt_token'),
             'permission_callback' => '__return_true',
         ));
+
+        // Registration endpoint (works with WP's "Anyone can register" setting)
+        register_rest_route('bmc/v1', '/auth/register', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'register_user'),
+            'permission_callback' => '__return_true',
+        ));
         
         // Get likes for a post
         register_rest_route('bmc/v1', '/posts/(?P<id>\d+)/likes', array(
@@ -146,6 +153,61 @@ class Bodybuilding_Media_Channel {
             'callback' => array($this, 'get_user_liked_posts'),
             'permission_callback' => array($this, 'check_authentication'),
         ));
+    }
+
+    /**
+     * Register a new WordPress user (if registration is enabled).
+     */
+    public function register_user($request) {
+        $email = sanitize_email($request->get_param('email'));
+        $username = sanitize_user($request->get_param('username'));
+        $password = (string) $request->get_param('password');
+
+        if (empty($email) || empty($username) || empty($password)) {
+            return new WP_Error('missing_fields', 'Email, username, and password are required', array('status' => 400));
+        }
+
+        if (!is_email($email)) {
+            return new WP_Error('invalid_email', 'Invalid email address', array('status' => 400));
+        }
+
+        if (strlen($password) < 6) {
+            return new WP_Error('weak_password', 'Password must be at least 6 characters', array('status' => 400));
+        }
+
+        // Respect WP setting "Anyone can register"
+        if (!get_option('users_can_register')) {
+            return new WP_Error('registration_disabled', 'User registration is disabled on this site', array('status' => 403));
+        }
+
+        if (username_exists($username)) {
+            return new WP_Error('username_exists', 'Username already exists', array('status' => 409));
+        }
+
+        if (email_exists($email)) {
+            return new WP_Error('email_exists', 'Email already exists', array('status' => 409));
+        }
+
+        $user_id = wp_create_user($username, $password, $email);
+        if (is_wp_error($user_id)) {
+            return new WP_Error('registration_failed', $user_id->get_error_message(), array('status' => 400));
+        }
+
+        // Default to subscriber
+        $user = get_user_by('id', $user_id);
+        if ($user && $user instanceof WP_User) {
+            $user->set_role('subscriber');
+        }
+
+        return array(
+            'success' => true,
+            'user' => array(
+                'id' => $user_id,
+                'username' => $username,
+                'email' => $email,
+                'name' => $user ? $user->display_name : $username,
+            ),
+        );
     }
     
     /**
