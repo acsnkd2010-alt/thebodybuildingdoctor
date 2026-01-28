@@ -32,6 +32,18 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Media fetch error:', error);
+    
+    // Check if WordPress API URL is not configured
+    if (error.message?.includes('WordPress API URL not configured')) {
+      return NextResponse.json(
+        { 
+          message: 'WordPress API not configured. Please set WORDPRESS_API_URL environment variable.',
+          error: 'WORDPRESS_NOT_CONFIGURED'
+        },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json(
       { message: error.message || 'Failed to fetch media' },
       { status: 500 }

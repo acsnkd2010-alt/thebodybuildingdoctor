@@ -61,7 +61,14 @@ export default function MediaFeed({ user }: MediaFeedProps) {
       }
 
       const res = await fetch(`/api/media?page=${pageNum}&per_page=12`);
-      if (!res.ok) throw new Error('Failed to fetch media');
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        if (errorData.error === 'WORDPRESS_NOT_CONFIGURED') {
+          throw new Error('WORDPRESS_NOT_CONFIGURED');
+        }
+        throw new Error(errorData.message || 'Failed to fetch media');
+      }
 
       const data = await res.json();
       
@@ -73,8 +80,12 @@ export default function MediaFeed({ user }: MediaFeedProps) {
 
       setHasMore(data.pagination.hasMore);
       setPage(pageNum);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading posts:', error);
+      if (error.message === 'WORDPRESS_NOT_CONFIGURED') {
+        // Don't show error, just show empty state with message
+        setPosts([]);
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -120,11 +131,25 @@ export default function MediaFeed({ user }: MediaFeedProps) {
           </p>
         </div>
 
-        {posts.length === 0 ? (
-          <div className="card-surface p-8 text-center">
-            <p className="text-slate-400">No media content available yet.</p>
+        {posts.length === 0 && !loading ? (
+          <div className="card-surface p-8 text-center space-y-4">
+            <div className="pill mx-auto">Setup Required</div>
+            <h2 className="text-xl font-semibold">WordPress Integration Pending</h2>
+            <p className="text-slate-400 text-sm">
+              The media channel is ready! Once you install and configure the WordPress plugin,
+              your content will appear here automatically.
+            </p>
+            <div className="mt-6 p-4 bg-slate-900/50 rounded-lg text-left text-xs text-slate-300">
+              <p className="font-semibold mb-2">Next Steps:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>Install WordPress plugin from <code className="bg-slate-800 px-1 rounded">wordpress-plugin/</code> folder</li>
+                <li>Configure WordPress plugin settings</li>
+                <li>Add environment variables in Vercel Dashboard</li>
+                <li>Content will appear automatically!</li>
+              </ol>
+            </div>
           </div>
-        ) : (
+        ) : posts.length > 0 ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
               {posts.map((post) => (
