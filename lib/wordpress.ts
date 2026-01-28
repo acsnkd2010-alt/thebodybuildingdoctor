@@ -52,7 +52,9 @@ export async function fetchWordPressPosts(
     throw new Error('WordPress API URL not configured');
   }
 
-  const url = new URL(`${WORDPRESS_API_URL}/wp-json/wp/v2/posts`);
+  // Fetch Media Channel items from our custom post type (registered by the WP plugin)
+  // REST base: /wp-json/wp/v2/bmc_media
+  const url = new URL(`${WORDPRESS_API_URL}/wp-json/wp/v2/bmc_media`);
   url.searchParams.set('page', String(page));
   url.searchParams.set('per_page', String(perPage));
   url.searchParams.set('_embed', 'true');
@@ -81,7 +83,7 @@ export async function fetchWordPressPost(id: number): Promise<WordPressPost> {
     throw new Error('WordPress API URL not configured');
   }
 
-  const url = new URL(`${WORDPRESS_API_URL}/wp-json/wp/v2/posts/${id}`);
+  const url = new URL(`${WORDPRESS_API_URL}/wp-json/wp/v2/bmc_media/${id}`);
   url.searchParams.set('_embed', 'true');
 
   const response = await fetch(url.toString(), {

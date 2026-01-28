@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import MediaCard from './MediaCard';
-import { HeartIcon } from '@heroicons/react/24/outline';
-import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
+import LoadingSkeleton from './LoadingSkeleton';
 
 interface MediaPost {
   id: number;
@@ -112,8 +111,15 @@ export default function MediaFeed({ user }: MediaFeedProps) {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-sm text-slate-400">Loading media...</div>
+      <div className="h-full overflow-y-auto px-4 md:px-8 py-6 md:py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6">
+            <div className="pill w-fit mb-2 animate-pulse bg-slate-800 h-6 w-32" />
+            <div className="h-8 bg-slate-800 rounded w-64 mb-2 animate-pulse" />
+            <div className="h-4 bg-slate-800 rounded w-48 animate-pulse" />
+          </div>
+          <LoadingSkeleton />
+        </div>
       </div>
     );
   }

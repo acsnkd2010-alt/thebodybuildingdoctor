@@ -69,6 +69,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user has required role (Media Channel Member or admin)
+    const userRole = wpUser.role || wpUser.roles?.[0];
+    const allowedRoles = ['media_channel_member', 'administrator', 'editor', 'author'];
+    
+    if (userRole && !allowedRoles.includes(userRole)) {
+      return NextResponse.json(
+        { 
+          message: 'Your account does not have access to the Media Channel. Please contact an administrator to upgrade your account.',
+          code: 'INSUFFICIENT_PERMISSIONS'
+        },
+        { status: 403 }
+      );
+    }
+
     // Create our own JWT session token
     if (!JWT_SECRET) {
       return NextResponse.json(

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { HeartIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import Image from 'next/image';
+import Toast from './Toast';
 
 interface MediaPost {
   id: number;
@@ -30,6 +31,7 @@ export default function MediaCard({ post, featuredImage, userId }: MediaCardProp
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(post.acf?.likes || 0);
   const [isToggling, setIsToggling] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     // Check initial like status
@@ -57,12 +59,17 @@ export default function MediaCard({ post, featuredImage, userId }: MediaCardProp
         // Revert on error
         setIsLiked(previousLiked);
         setLikes(previousLikes);
+        setToast({ message: 'Failed to update like. Please try again.', type: 'error' });
         throw new Error('Failed to update like');
       }
 
       const data = await res.json();
       setIsLiked(data.liked);
       setLikes(data.likes);
+      setToast({
+        message: data.liked ? 'Added to your liked content!' : 'Removed from liked content.',
+        type: 'success',
+      });
     } catch (error) {
       console.error('Like error:', error);
     } finally {
@@ -138,6 +145,14 @@ export default function MediaCard({ post, featuredImage, userId }: MediaCardProp
           </div>
         </div>
       </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+          duration={2000}
+        />
+      )}
     </div>
   );
 }

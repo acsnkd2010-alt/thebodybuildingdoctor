@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Toast from './Toast';
 
 type Mode = 'login' | 'register';
 
@@ -15,6 +16,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const title = mode === 'login' ? 'Welcome back' : 'Join the media club';
   const subtitle =
@@ -36,13 +38,27 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Something went wrong');
+        const errorMessage = data.message || 'Something went wrong';
+        setError(errorMessage);
+        setToast({ message: errorMessage, type: 'error' });
+        throw new Error(errorMessage);
       }
 
-      router.push(redirectTo);
-      router.refresh();
+      const result = await res.json();
+      
+      // Show success message
+      setToast({
+        message: mode === 'login' ? 'Welcome back! Redirecting...' : 'Account created! Redirecting...',
+        type: 'success',
+      });
+
+      // Redirect after a brief delay
+      setTimeout(() => {
+        router.push(redirectTo);
+        router.refresh();
+      }, 1000);
     } catch (err: any) {
-      setError(err.message ?? 'Unexpected error');
+      // Error already handled above
     } finally {
       setIsSubmitting(false);
     }
@@ -116,6 +132,13 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         By continuing you agree to the club&apos;s members-only terms. Your credentials
         are authenticated via the WordPress backend.
       </p>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

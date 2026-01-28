@@ -42,7 +42,7 @@ export async function POST(
     // We'll use the Application Password to authenticate
     try {
       const wpResponse = await fetch(
-        `${WORDPRESS_API_URL}/wp-json/bmc/v1/posts/${postId}/like`,
+        `${WORDPRESS_API_URL}/wp-json/bmc/v1/media/${postId}/like`,
         {
           method: 'POST',
           headers: {

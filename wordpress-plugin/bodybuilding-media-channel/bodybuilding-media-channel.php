@@ -29,6 +29,7 @@ define('BMC_PLUGIN_URL', plugin_dir_url(__FILE__));
 class Bodybuilding_Media_Channel {
     
     private static $instance = null;
+    private $media_post_type = 'bmc_media';
     
     public static function get_instance() {
         if (null === self::$instance) {
@@ -48,6 +49,12 @@ class Bodybuilding_Media_Channel {
         
         // Initialize plugin
         add_action('plugins_loaded', array($this, 'init'));
+
+        // Register custom post type for this app (admin-only management)
+        add_action('init', array($this, 'register_media_cpt'));
+
+        // Prevent Media Channel Members from accessing WP admin
+        add_action('admin_init', array($this, 'block_media_channel_member_admin_access'));
         
         // Add REST API endpoints
         add_action('rest_api_init', array($this, 'register_rest_routes'));
@@ -69,11 +76,133 @@ class Bodybuilding_Media_Channel {
      * Plugin activation
      */
     public function activate() {
+        // Create custom role for Next.js app users
+        $this->create_media_channel_role();
+
+        // Register CPT so rewrite rules & rest base exist
+        $this->register_media_cpt();
+        
         // Create custom table for likes if needed (optional - using post meta instead)
         $this->create_tables();
         
         // Flush rewrite rules
         flush_rewrite_rules();
+    }
+    
+    /**
+     * Create custom WordPress role for Media Channel Members
+     * This role can only access the Next.js application, not WordPress admin
+     */
+    private function create_media_channel_role() {
+        // Remove role if it exists to reset capabilities
+        remove_role('media_channel_member');
+        
+        // Create the role with minimal WordPress capabilities
+        // They can only read posts (for REST API) but cannot access WordPress admin
+        add_role(
+            'media_channel_member',
+            __('Media Channel Member', 'bodybuilding-media-channel'),
+            array(
+                'read' => true, // Required for REST API access
+                // No other capabilities - they cannot access WordPress admin
+            )
+        );
+    }
+
+    /**
+     * Block Media Channel Members from WP admin.
+     * They should only use the Next.js application.
+     */
+    public function block_media_channel_member_admin_access() {
+        if (defined('DOING_AJAX') && DOING_AJAX) {
+            return;
+        }
+
+        if (!is_user_logged_in()) {
+            return;
+        }
+
+        $user = wp_get_current_user();
+        if (!$user || empty($user->roles)) {
+            return;
+        }
+
+        // IMPORTANT: only hard-block users whose ONLY role is media_channel_member.
+        // This prevents accidental lockouts if some site uses multiple roles/cap plugins.
+        $roles = array_values($user->roles);
+        $is_only_media_member = (count($roles) === 1 && $roles[0] === 'media_channel_member');
+
+        if ($is_only_media_member && !current_user_can('manage_options')) {
+            wp_safe_redirect(home_url('/'));
+            exit;
+        }
+    }
+
+    /**
+     * Register the custom post type used ONLY for this application.
+     * Only admins can create/edit these items.
+     */
+    public function register_media_cpt() {
+        $labels = array(
+            'name'               => __('Media Channel', 'bodybuilding-media-channel'),
+            'singular_name'      => __('Media Item', 'bodybuilding-media-channel'),
+            'menu_name'          => __('Media Channel', 'bodybuilding-media-channel'),
+            'add_new'            => __('Add New', 'bodybuilding-media-channel'),
+            'add_new_item'       => __('Add New Media Item', 'bodybuilding-media-channel'),
+            'edit_item'          => __('Edit Media Item', 'bodybuilding-media-channel'),
+            'new_item'           => __('New Media Item', 'bodybuilding-media-channel'),
+            'view_item'          => __('View Media Item', 'bodybuilding-media-channel'),
+            'search_items'       => __('Search Media Items', 'bodybuilding-media-channel'),
+            'not_found'          => __('No media items found', 'bodybuilding-media-channel'),
+            'not_found_in_trash' => __('No media items found in Trash', 'bodybuilding-media-channel'),
+        );
+
+        // Only admins should manage content in WP admin.
+        // We map ALL management capabilities to `manage_options`.
+        $caps = array(
+            'edit_post'          => 'manage_options',
+            'read_post'          => 'read',
+            'delete_post'        => 'manage_options',
+            'edit_posts'         => 'manage_options',
+            'edit_others_posts'  => 'manage_options',
+            'publish_posts'      => 'manage_options',
+            'read_private_posts' => 'manage_options',
+            'delete_posts'       => 'manage_options',
+            'delete_private_posts' => 'manage_options',
+            'delete_published_posts' => 'manage_options',
+            'delete_others_posts' => 'manage_options',
+            'edit_private_posts' => 'manage_options',
+            'edit_published_posts' => 'manage_options',
+            'create_posts'       => 'manage_options',
+        );
+
+        register_post_type($this->media_post_type, array(
+            'labels'             => $labels,
+            'public'             => false,
+            'show_ui'            => true,
+            'show_in_menu'       => true,
+            'menu_position'      => 20,
+            'menu_icon'          => 'dashicons-video-alt3',
+            'supports'           => array('title', 'editor', 'excerpt', 'thumbnail'),
+            'has_archive'        => false,
+            'exclude_from_search'=> true,
+            'publicly_queryable' => false,
+            'show_in_rest'       => true,
+            'rest_base'          => 'bmc_media',
+            'capability_type'    => $this->media_post_type,
+            'capabilities'       => $caps,
+            'map_meta_cap'       => true,
+        ));
+
+        // Optional taxonomy to organize content
+        register_taxonomy('bmc_media_category', array($this->media_post_type), array(
+            'label'        => __('Media Categories', 'bodybuilding-media-channel'),
+            'public'       => false,
+            'show_ui'      => true,
+            'show_in_rest' => true,
+            'rest_base'    => 'bmc_media_categories',
+            'hierarchical' => true,
+        ));
     }
     
     /**
@@ -133,15 +262,28 @@ class Bodybuilding_Media_Channel {
             'permission_callback' => '__return_true',
         ));
         
-        // Get likes for a post
+        // Get likes for a post (back-compat; restricted to BMC Media items)
         register_rest_route('bmc/v1', '/posts/(?P<id>\d+)/likes', array(
             'methods' => 'GET',
             'callback' => array($this, 'get_post_likes'),
             'permission_callback' => array($this, 'check_authentication'),
         ));
         
-        // Toggle like for a post
+        // Toggle like for a post (back-compat; restricted to BMC Media items)
         register_rest_route('bmc/v1', '/posts/(?P<id>\d+)/like', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'toggle_post_like'),
+            'permission_callback' => array($this, 'check_authentication'),
+        ));
+
+        // Likes endpoints for Media Channel custom post type (preferred)
+        register_rest_route('bmc/v1', '/media/(?P<id>\d+)/likes', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_post_likes'),
+            'permission_callback' => array($this, 'check_authentication'),
+        ));
+
+        register_rest_route('bmc/v1', '/media/(?P<id>\d+)/like', array(
             'methods' => 'POST',
             'callback' => array($this, 'toggle_post_like'),
             'permission_callback' => array($this, 'check_authentication'),
@@ -157,6 +299,7 @@ class Bodybuilding_Media_Channel {
 
     /**
      * Register a new WordPress user (if registration is enabled).
+     * Assigns them the "Media Channel Member" role.
      */
     public function register_user($request) {
         $email = sanitize_email($request->get_param('email'));
@@ -193,10 +336,11 @@ class Bodybuilding_Media_Channel {
             return new WP_Error('registration_failed', $user_id->get_error_message(), array('status' => 400));
         }
 
-        // Default to subscriber
+        // Assign Media Channel Member role (restricted access)
         $user = get_user_by('id', $user_id);
         if ($user && $user instanceof WP_User) {
-            $user->set_role('subscriber');
+            // Remove default subscriber role and assign Media Channel Member role
+            $user->set_role('media_channel_member');
         }
 
         return array(
@@ -206,6 +350,7 @@ class Bodybuilding_Media_Channel {
                 'username' => $username,
                 'email' => $email,
                 'name' => $user ? $user->display_name : $username,
+                'role' => 'media_channel_member',
             ),
         );
     }
@@ -232,8 +377,8 @@ class Bodybuilding_Media_Channel {
      * Add custom fields to REST API response
      */
     public function add_custom_fields_to_rest() {
-        // Add likes count and liked_by array to posts
-        register_rest_field('post', 'acf', array(
+        // Add likes count and liked_by array to Media Channel items
+        register_rest_field($this->media_post_type, 'acf', array(
             'get_callback' => array($this, 'get_post_custom_fields'),
             'update_callback' => array($this, 'update_post_custom_fields'),
             'schema' => array(
@@ -242,8 +387,8 @@ class Bodybuilding_Media_Channel {
             ),
         ));
         
-        // Ensure featured media is included
-        add_filter('rest_prepare_post', array($this, 'add_featured_media_to_response'), 10, 3);
+        // Ensure featured media is included for our CPT REST responses
+        add_filter('rest_prepare_' . $this->media_post_type, array($this, 'add_featured_media_to_response'), 10, 3);
     }
     
     /**
@@ -327,6 +472,7 @@ class Bodybuilding_Media_Channel {
     
     /**
      * Generate JWT token (fallback if JWT plugin not installed)
+     * Only allows users with Media Channel Member role or admin
      */
     public function generate_jwt_token($request) {
         $username = $request->get_param('username');
@@ -340,6 +486,22 @@ class Bodybuilding_Media_Channel {
         
         if (is_wp_error($user)) {
             return new WP_Error('invalid_credentials', 'Invalid username or password', array('status' => 401));
+        }
+        
+        // Check if user has required role
+        $user_roles = $user->roles;
+        $allowed_roles = array('media_channel_member', 'administrator', 'editor', 'author');
+        $has_allowed_role = false;
+        
+        foreach ($user_roles as $role) {
+            if (in_array($role, $allowed_roles)) {
+                $has_allowed_role = true;
+                break;
+            }
+        }
+        
+        if (!$has_allowed_role) {
+            return new WP_Error('insufficient_permissions', 'Your account does not have access to the Media Channel. Please contact an administrator.', array('status' => 403));
         }
         
         // Generate token (simplified - use proper JWT library in production)
@@ -361,30 +523,49 @@ class Bodybuilding_Media_Channel {
                 'username' => $user->user_login,
                 'email' => $user->user_email,
                 'name' => $user->display_name,
+                'role' => reset($user_roles), // Primary role
             ),
         );
     }
     
     /**
-     * Check authentication
+     * Check authentication and verify user has Media Channel Member role or admin
      */
     public function check_authentication($request) {
         // Check if user is logged in via WordPress
         $user_id = get_current_user_id();
         
         if ($user_id === 0) {
-            // Try to authenticate via JWT token
-            $auth_header = $request->get_header('Authorization');
-            
-            if (!empty($auth_header) && preg_match('/Bearer\s+(.*)$/i', $auth_header, $matches)) {
-                $token = $matches[1];
-                // Verify token and set user (simplified - use proper JWT verification)
-                // For production, use JWT Authentication for WP REST API plugin
+            // Try to authenticate via Application Password
+            if (!$this->check_application_password($request)) {
+                return false;
+            }
+            $user_id = get_current_user_id();
+        }
+        
+        if ($user_id === 0) {
+            return false;
+        }
+        
+        // Verify user has required role: Media Channel Member or Administrator
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            return false;
+        }
+        
+        $user_roles = $user->roles;
+        $allowed_roles = array('media_channel_member', 'administrator', 'editor', 'author');
+        
+        // Check if user has at least one allowed role
+        $has_allowed_role = false;
+        foreach ($user_roles as $role) {
+            if (in_array($role, $allowed_roles)) {
+                $has_allowed_role = true;
+                break;
             }
         }
         
-        // Allow if user is authenticated or if using Application Password
-        return $user_id > 0 || $this->check_application_password($request);
+        return $has_allowed_role;
     }
     
     /**
@@ -425,6 +606,12 @@ class Bodybuilding_Media_Channel {
         if (!$post_id || !get_post($post_id)) {
             return new WP_Error('invalid_post', 'Invalid post ID', array('status' => 404));
         }
+
+        // Only allow likes on Media Channel items
+        $post = get_post($post_id);
+        if (!$post || $post->post_type !== $this->media_post_type) {
+            return new WP_Error('invalid_post_type', 'Likes are only supported for Media Channel items', array('status' => 400));
+        }
         
         $likes = (int) get_post_meta($post_id, 'bmc_likes', true) ?: 0;
         $liked_by = get_post_meta($post_id, 'bmc_liked_by', true) ?: array();
@@ -454,6 +641,12 @@ class Bodybuilding_Media_Channel {
         
         if (!$post_id || !get_post($post_id)) {
             return new WP_Error('invalid_post', 'Invalid post ID', array('status' => 404));
+        }
+
+        // Only allow likes on Media Channel items
+        $post = get_post($post_id);
+        if (!$post || $post->post_type !== $this->media_post_type) {
+            return new WP_Error('invalid_post_type', 'Likes are only supported for Media Channel items', array('status' => 400));
         }
         
         $liked_by = get_post_meta($post_id, 'bmc_liked_by', true) ?: array();
@@ -499,12 +692,12 @@ class Bodybuilding_Media_Channel {
         
         // Get all posts where user has liked
         $args = array(
-            'post_type' => 'post',
+            'post_type' => $this->media_post_type,
             'posts_per_page' => -1,
             'meta_query' => array(
                 array(
                     'key' => 'bmc_liked_by',
-                    'value' => serialize(array($user_id)),
+                    'value' => 'i:' . $user_id . ';',
                     'compare' => 'LIKE',
                 ),
             ),
