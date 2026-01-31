@@ -127,6 +127,13 @@ export default function AuthForm({ mode }: { mode: Mode }) {
             ? 'Login'
             : 'Create account'}
         </button>
+        {mode === 'login' && (
+          <p className="text-center text-sm text-slate-400">
+            <a href="/forgot-password" className="text-accent hover:underline">
+              Forgot password?
+            </a>
+          </p>
+        )}
       </form>
       <p className="mt-4 text-[11px] text-slate-500">
         By continuing you agree to the club&apos;s members-only terms. Your credentials

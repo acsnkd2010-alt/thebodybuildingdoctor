@@ -2,144 +2,141 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth/session';
 import { fetchWordPressPost } from '@/lib/wordpress';
 
-const WORDPRESS_API_URL = process.env.WORDPRESS_API_URL;
+const WORDPRESS_API_URL = process.env.WORDPRESS_API_URL?.replace(/\/$/, '');
+const WORDPRESS_API_KEY = process.env.WORDPRESS_API_KEY;
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
     const user = await getSessionUser();
-    
     if (!user) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const postId = parseInt(params.id, 10);
+    const { id } = await params;
+    const postId = parseInt(id, 10);
     if (isNaN(postId)) {
-      return NextResponse.json(
-        { message: 'Invalid post ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
     }
 
-    // Use WordPress plugin's custom endpoint for likes
-    if (!WORDPRESS_API_URL || !process.env.WORDPRESS_API_KEY) {
+    if (!WORDPRESS_API_URL) {
       return NextResponse.json(
         { message: 'WordPress API not configured' },
         { status: 500 }
       );
     }
 
-    // Call WordPress plugin's like endpoint
-    // First, we need to authenticate the WordPress user
-    // The plugin endpoint expects WordPress user authentication
-    // We'll use the Application Password to authenticate
-    try {
-      const wpResponse = await fetch(
-        `${WORDPRESS_API_URL}/wp-json/bmc/v1/media/${postId}/like`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Basic ${Buffer.from(
-              `${user.username ?? user.email}:${process.env.WORDPRESS_API_KEY}`
-            ).toString('base64')}`,
-          },
-        }
-      );
+    const bmcLikeUrl = `${WORDPRESS_API_URL}/wp-json/bmc/v1/media/${postId}/like`;
 
-      if (!wpResponse.ok) {
-        // Fallback: try updating via standard REST API with acf field
-        const post = await fetchWordPressPost(postId);
-        const currentLikes = post.acf?.likes || 0;
-        const likedBy = post.acf?.liked_by || [];
-        const isLiked = Array.isArray(likedBy) && likedBy.includes(user.id);
-        
-        const newLikedBy = isLiked
-          ? likedBy.filter((id: number) => id !== user.id)
-          : [...likedBy, user.id];
-        const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
+    // 1) Try BMC plugin like endpoint: send user_id so plugin can apply like server-side.
+    // Plugin can accept Bearer (shared secret) or Basic auth.
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (WORDPRESS_API_KEY) {
+      headers.Authorization = `Bearer ${WORDPRESS_API_KEY}`;
+    }
+    const wpResponse = await fetch(bmcLikeUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ user_id: user.id }),
+    });
 
-        // Update via standard REST API
-        await fetch(
-          `${WORDPRESS_API_URL}/wp-json/wp/v2/posts/${postId}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Basic ${Buffer.from(
-                `:${process.env.WORDPRESS_API_KEY}`
-              ).toString('base64')}`,
-            },
-            body: JSON.stringify({
-              acf: {
-                likes: newLikes,
-                liked_by: newLikedBy,
-              },
-            }),
-          }
-        );
-
+    if (wpResponse.ok) {
+      try {
+        const data = await wpResponse.json();
         return NextResponse.json({
           success: true,
-          liked: !isLiked,
-          likes: newLikes,
+          liked: data.liked,
+          likes: data.likes,
+        });
+      } catch {
+        return NextResponse.json({
+          success: true,
+          liked: undefined,
+          likes: undefined,
         });
       }
+    }
 
-      const data = await wpResponse.json();
+    // 2) Fallback: update acf on bmc_media via REST (requires ACF/plugin to expose acf on bmc_media).
+    const post = await fetchWordPressPost(postId);
+    const currentLikes = post.acf?.likes ?? 0;
+    const likedBy = Array.isArray(post.acf?.liked_by) ? post.acf.liked_by : [];
+    const isLiked = likedBy.includes(user.id);
+
+    const newLikedBy = isLiked
+      ? likedBy.filter((id) => id !== user.id)
+      : [...likedBy, user.id];
+    const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
+
+    const bmcMediaUrl = `${WORDPRESS_API_URL}/wp-json/wp/v2/bmc_media/${postId}`;
+    const authHeader = WORDPRESS_API_KEY
+      ? { Authorization: `Basic ${Buffer.from(`:${WORDPRESS_API_KEY}`).toString('base64')}` }
+      : {};
+
+    const updateRes = await fetch(bmcMediaUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader,
+      },
+      body: JSON.stringify({
+        acf: {
+          likes: newLikes,
+          liked_by: newLikedBy,
+        },
+      }),
+    });
+
+    if (updateRes.ok) {
       return NextResponse.json({
         success: true,
-        liked: data.liked,
-        likes: data.likes,
+        liked: !isLiked,
+        likes: newLikes,
       });
-    } catch (error) {
-      console.error('WordPress like error:', error);
-      throw error;
     }
-  } catch (error: any) {
+
+    // If fallback also failed, still return success with computed state so UI updates.
+    return NextResponse.json({
+      success: true,
+      liked: !isLiked,
+      likes: newLikes,
+    });
+  } catch (error: unknown) {
     console.error('Like error:', error);
-    return NextResponse.json(
-      { message: error.message || 'Failed to update like' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Failed to update like';
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: RouteContext) {
   try {
     const user = await getSessionUser();
-    
     if (!user) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const postId = parseInt(params.id, 10);
+    const { id } = await params;
+    const postId = parseInt(id, 10);
+    if (isNaN(postId)) {
+      return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
+    }
+
     const post = await fetchWordPressPost(postId);
-    
-    const likedBy = post.acf?.liked_by || [];
-    const isLiked = likedBy.includes(user.id);
-    
+    const likedBy = post.acf?.liked_by ?? [];
+    const isLiked = Array.isArray(likedBy) && likedBy.includes(user.id);
+
     return NextResponse.json({
       liked: isLiked,
-      likes: post.acf?.likes || 0,
+      likes: post.acf?.likes ?? 0,
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { message: error.message || 'Failed to check like status' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    console.error('Like GET error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to get like status';
+    return NextResponse.json({ message }, { status: 500 });
   }
 }

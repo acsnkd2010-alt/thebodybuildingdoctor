@@ -14,6 +14,12 @@ interface MediaPost {
     rendered: string;
   };
   featured_media: number;
+  featured_video_url?: string;
+  featured_audio_url?: string;
+  meta?: {
+    bmc_featured_video_url?: string;
+    bmc_featured_audio_url?: string;
+  };
   _embedded?: {
     'wp:featuredmedia'?: Array<{
       source_url: string;
@@ -98,9 +104,7 @@ export default function MediaFeed({ user }: MediaFeedProps) {
   }
 
   function getFeaturedImageUrl(post: MediaPost): string | null {
-    if (!post._embedded?.['wp:featuredmedia']?.[0]) {
-      return null;
-    }
+    if (!post._embedded?.['wp:featuredmedia']?.[0]) return null;
     const media = post._embedded['wp:featuredmedia'][0];
     return (
       media.media_details?.sizes?.large?.source_url ||
@@ -109,12 +113,22 @@ export default function MediaFeed({ user }: MediaFeedProps) {
     );
   }
 
+  function getFeaturedVideoUrl(post: MediaPost): string | null {
+    const url = post.featured_video_url ?? post.meta?.bmc_featured_video_url;
+    return url && String(url).trim() ? String(url).trim() : null;
+  }
+
+  function getFeaturedAudioUrl(post: MediaPost): string | null {
+    const url = post.featured_audio_url ?? post.meta?.bmc_featured_audio_url;
+    return url && String(url).trim() ? String(url).trim() : null;
+  }
+
   if (loading) {
     return (
       <div className="h-full overflow-y-auto px-4 md:px-8 py-6 md:py-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
-            <div className="pill w-fit mb-2 animate-pulse bg-slate-800 h-6 w-32" />
+            <div className="pill mb-2 h-6 w-32 animate-pulse bg-slate-800" />
             <div className="h-8 bg-slate-800 rounded w-64 mb-2 animate-pulse" />
             <div className="h-4 bg-slate-800 rounded w-48 animate-pulse" />
           </div>
@@ -125,51 +139,55 @@ export default function MediaFeed({ user }: MediaFeedProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto px-4 md:px-8 py-6 md:py-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <div className="pill w-fit mb-2">Media Channel</div>
-          <h1 className="text-2xl md:text-3xl font-semibold mb-2">
-            Training Content &amp; Insights
+    <div className="h-full overflow-y-auto px-4 md:px-8 py-4 md:py-8">
+      {/* Mobile: narrow feed (Instagram/WhatsApp style). Desktop: same wide grid as before */}
+      <div className="max-w-[min(100%,420px)] md:max-w-7xl mx-auto">
+        <header className="mb-6 md:mb-8">
+          <div className="pill mb-2 inline-block">Feed</div>
+          <h1 className="text-xl md:text-2xl font-bold mb-1 tracking-tight md:text-4xl md:mb-2">
+            Latest News &amp; Articles
           </h1>
-          <p className="text-sm text-slate-400">
-            Exclusive bodybuilding content for club members
+          <p className="text-slate-400 text-sm md:text-base max-w-2xl">
+            Training content, insights, and updates for club members
           </p>
-        </div>
+        </header>
 
         {posts.length === 0 && !loading ? (
-          <div className="card-surface p-8 text-center space-y-4">
+          <div className="card-surface p-8 text-center space-y-4 rounded-2xl">
             <div className="pill mx-auto">Setup Required</div>
-            <h2 className="text-xl font-semibold">WordPress Integration Pending</h2>
+            <h2 className="text-lg font-semibold">WordPress Integration Pending</h2>
             <p className="text-slate-400 text-sm">
-              The media channel is ready! Once you install and configure the WordPress plugin,
-              your content will appear here automatically.
+              Install and configure the WordPress plugin; content will appear here automatically.
             </p>
             <div className="mt-6 p-4 bg-slate-900/50 rounded-lg text-left text-xs text-slate-300">
               <p className="font-semibold mb-2">Next Steps:</p>
               <ol className="list-decimal list-inside space-y-1 ml-2">
-                <li>Install WordPress plugin from <code className="bg-slate-800 px-1 rounded">wordpress-plugin/</code> folder</li>
-                <li>Configure WordPress plugin settings</li>
-                <li>Add environment variables in Vercel Dashboard</li>
-                <li>Content will appear automatically!</li>
+                <li>Install WordPress plugin from <code className="bg-slate-800 px-1 rounded">wordpress-plugin/</code></li>
+                <li>Configure BMC plugin settings</li>
+                <li>Add env vars in Vercel</li>
               </ol>
             </div>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+            <section
+              className="flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6"
+              aria-label="Media posts"
+            >
               {posts.map((post) => (
                 <MediaCard
                   key={post.id}
                   post={post}
                   featuredImage={getFeaturedImageUrl(post)}
+                  featuredVideoUrl={getFeaturedVideoUrl(post)}
+                  featuredAudioUrl={getFeaturedAudioUrl(post)}
                   userId={user.id}
                 />
               ))}
-            </div>
+            </section>
 
             {hasMore && (
-              <div className="mt-8 text-center">
+              <div className="mt-6 md:mt-8 text-center">
                 <button
                   onClick={handleLoadMore}
                   disabled={loadingMore}

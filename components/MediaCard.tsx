@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { HeartIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import Image from 'next/image';
@@ -24,10 +25,12 @@ interface MediaPost {
 interface MediaCardProps {
   post: MediaPost;
   featuredImage: string | null;
+  featuredVideoUrl: string | null;
+  featuredAudioUrl: string | null;
   userId: number;
 }
 
-export default function MediaCard({ post, featuredImage, userId }: MediaCardProps) {
+export default function MediaCard({ post, featuredImage, featuredVideoUrl, featuredAudioUrl, userId }: MediaCardProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(post.acf?.likes || 0);
   const [isToggling, setIsToggling] = useState(false);
@@ -39,7 +42,9 @@ export default function MediaCard({ post, featuredImage, userId }: MediaCardProp
     setIsLiked(likedBy.includes(userId));
   }, [post, userId]);
 
-  async function handleLike() {
+  async function handleLike(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     if (isToggling) return;
 
     setIsToggling(true);
@@ -53,6 +58,8 @@ export default function MediaCard({ post, featuredImage, userId }: MediaCardProp
     try {
       const res = await fetch(`/api/media/${post.id}/like`, {
         method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
 
       if (!res.ok) {
@@ -64,10 +71,12 @@ export default function MediaCard({ post, featuredImage, userId }: MediaCardProp
       }
 
       const data = await res.json();
-      setIsLiked(data.liked);
-      setLikes(data.likes);
+      const liked = typeof data.liked === 'boolean' ? data.liked : !previousLiked;
+      const likesCount = typeof data.likes === 'number' ? data.likes : (previousLiked ? likes - 1 : likes + 1);
+      setIsLiked(liked);
+      setLikes(likesCount);
       setToast({
-        message: data.liked ? 'Added to your liked content!' : 'Removed from liked content.',
+        message: liked ? 'Added to your liked content!' : 'Removed from liked content.',
         type: 'success',
       });
     } catch (error) {
@@ -83,65 +92,71 @@ export default function MediaCard({ post, featuredImage, userId }: MediaCardProp
     year: 'numeric',
   });
 
-  return (
-    <div className="card-surface group relative overflow-hidden">
-      {featuredImage ? (
-        <div className="relative aspect-[4/3] overflow-hidden bg-slate-900">
-          <Image
-            src={featuredImage}
-            alt={post.title.rendered}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+  // Mobile: square feed style. Desktop: same 4/3 ratio as before
+  const mediaArea = (
+    <div className="relative w-full overflow-hidden bg-slate-900 aspect-square max-h-[min(70vmin,420px)] mx-auto md:aspect-[4/3] md:max-h-none">
+      {featuredVideoUrl ? (
+        <video
+          src={featuredVideoUrl}
+          className="absolute inset-0 w-full h-full object-cover"
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster={featuredImage || undefined}
+        />
+      ) : featuredImage ? (
+        <Image
+          src={featuredImage}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        />
+      ) : featuredAudioUrl ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+          <audio src={featuredAudioUrl} controls className="w-full max-w-[90%]" preload="metadata" />
         </div>
       ) : (
-        <div className="aspect-[4/3] bg-slate-900 flex items-center justify-center">
-          <div className="text-slate-600 text-xs">No Image</div>
+        <div className="absolute inset-0 flex items-center justify-center text-slate-600 text-sm">
+          No media
         </div>
       )}
+    </div>
+  );
 
-      <div className="p-4 space-y-2">
-        <div className="flex items-start justify-between gap-2">
+  return (
+    <Link href={`/dashboard/post/${post.id}`} className="block group">
+      <div className="card-surface relative overflow-hidden flex flex-col hover:border-slate-600 transition-colors rounded-2xl">
+        {mediaArea}
+        <div className="p-3 md:p-4 flex flex-col gap-2">
           <h3
-            className="text-sm font-semibold line-clamp-2 flex-1"
+            className="text-sm font-semibold line-clamp-2 group-hover:text-sky-300 transition-colors"
             dangerouslySetInnerHTML={{ __html: post.title.rendered }}
           />
-          <button
-            onClick={handleLike}
-            disabled={isToggling}
-            className={`flex-shrink-0 p-1.5 rounded-full transition-all ${
-              isLiked
-                ? 'bg-red-500/20 text-red-400'
-                : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50'
-            } ${isToggling ? 'opacity-50' : ''}`}
-            aria-label={isLiked ? 'Unlike' : 'Like'}
-          >
-            {isLiked ? (
-              <HeartSolidIcon className="w-4 h-4" />
-            ) : (
-              <HeartIcon className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-
-        <div
-          className="text-xs text-slate-400 line-clamp-2"
-          dangerouslySetInnerHTML={{ __html: post.excerpt.rendered }}
-        />
-
-        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wide">
-            {date}
-          </span>
-          <div className="flex items-center gap-1 text-xs text-slate-400">
-            {isLiked ? (
-              <HeartSolidIcon className="w-3 h-3 text-red-400" />
-            ) : (
-              <HeartIcon className="w-3 h-3" />
-            )}
-            <span>{likes}</span>
+          <div
+            className="text-xs text-slate-400 line-clamp-2"
+            dangerouslySetInnerHTML={{ __html: post.excerpt.rendered }}
+          />
+          <div className="flex items-center justify-between pt-2 mt-1 border-t border-slate-800">
+            <span className="text-[10px] text-slate-500">{date}</span>
+            <button
+              onClick={handleLike}
+              disabled={isToggling}
+              className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
+                isLiked
+                  ? 'bg-red-500/20 text-red-400'
+                  : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50'
+              } ${isToggling ? 'opacity-50' : ''}`}
+              aria-label={isLiked ? 'Unlike' : 'Like'}
+            >
+              {isLiked ? (
+                <HeartSolidIcon className="w-3.5 h-3.5" />
+              ) : (
+                <HeartIcon className="w-3.5 h-3.5" />
+              )}
+              <span>{likes}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -153,6 +168,6 @@ export default function MediaCard({ post, featuredImage, userId }: MediaCardProp
           duration={2000}
         />
       )}
-    </div>
+    </Link>
   );
 }

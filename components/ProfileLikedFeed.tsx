@@ -6,29 +6,21 @@ import MediaCard from './MediaCard';
 interface MediaPost {
   id: number;
   date: string;
-  title: {
-    rendered: string;
-  };
-  excerpt: {
-    rendered: string;
-  };
+  title: { rendered: string };
+  excerpt: { rendered: string };
   featured_media: number;
+  featured_video_url?: string;
+  featured_audio_url?: string;
+  meta?: { bmc_featured_video_url?: string; bmc_featured_audio_url?: string };
   _embedded?: {
     'wp:featuredmedia'?: Array<{
       source_url: string;
       media_details?: {
-        sizes?: {
-          medium?: { source_url: string };
-          large?: { source_url: string };
-          full?: { source_url: string };
-        };
+        sizes?: { medium?: { source_url: string }; large?: { source_url: string }; full?: { source_url: string } };
       };
     }>;
   };
-  acf?: {
-    likes?: number;
-    liked_by?: number[];
-  };
+  acf?: { likes?: number; liked_by?: number[] };
 }
 
 interface ProfileLikedFeedProps {
@@ -72,15 +64,23 @@ export default function ProfileLikedFeed({ user }: ProfileLikedFeedProps) {
   }
 
   function getFeaturedImageUrl(post: MediaPost): string | null {
-    if (!post._embedded?.['wp:featuredmedia']?.[0]) {
-      return null;
-    }
+    if (!post._embedded?.['wp:featuredmedia']?.[0]) return null;
     const media = post._embedded['wp:featuredmedia'][0];
     return (
       media.media_details?.sizes?.large?.source_url ||
       media.media_details?.sizes?.medium?.source_url ||
       media.source_url
     );
+  }
+
+  function getFeaturedVideoUrl(post: MediaPost): string | null {
+    const url = post.featured_video_url ?? post.meta?.bmc_featured_video_url;
+    return url && String(url).trim() ? String(url).trim() : null;
+  }
+
+  function getFeaturedAudioUrl(post: MediaPost): string | null {
+    const url = post.featured_audio_url ?? post.meta?.bmc_featured_audio_url;
+    return url && String(url).trim() ? String(url).trim() : null;
   }
 
   if (loading) {
@@ -94,14 +94,30 @@ export default function ProfileLikedFeed({ user }: ProfileLikedFeedProps) {
   return (
     <div className="h-full overflow-y-auto px-4 md:px-8 py-6 md:py-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <div className="pill w-fit mb-2">Your Profile</div>
-          <h1 className="text-2xl md:text-3xl font-semibold mb-2">
-            {user.name || user.username || 'Your'} Liked Content
-          </h1>
-          <p className="text-sm text-slate-400">
-            Media you&apos;ve liked from the club channel
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="pill w-fit mb-2">Your Profile</div>
+            <h1 className="text-2xl md:text-3xl font-semibold mb-2">
+              {user.name || user.username || 'Your'} Liked Content
+            </h1>
+            <p className="text-sm text-slate-400">
+              Media you&apos;ve liked from the club channel
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="/profile/edit"
+              className="inline-flex items-center rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800/80 transition"
+            >
+              Edit profile
+            </a>
+            <a
+              href="/profile/password"
+              className="inline-flex items-center rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800/80 transition"
+            >
+              Change password
+            </a>
+          </div>
         </div>
 
         {likedPosts.length === 0 ? (
@@ -117,12 +133,14 @@ export default function ProfileLikedFeed({ user }: ProfileLikedFeedProps) {
             </a>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+          <div className="max-w-[min(100%,420px)] md:max-w-7xl mx-auto flex flex-col gap-6 md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3 xl:grid-cols-4 lg:gap-6">
             {likedPosts.map((post) => (
               <MediaCard
                 key={post.id}
                 post={post}
                 featuredImage={getFeaturedImageUrl(post)}
+                featuredVideoUrl={getFeaturedVideoUrl(post)}
+                featuredAudioUrl={getFeaturedAudioUrl(post)}
                 userId={user.id}
               />
             ))}

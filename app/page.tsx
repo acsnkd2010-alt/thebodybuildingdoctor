@@ -1,10 +1,27 @@
 import Link from 'next/link';
 import { SparklesIcon, FireIcon, TrophyIcon } from '@heroicons/react/24/outline';
+import { getSiteInfo } from '@/lib/wordpress';
 
-export default function Home() {
+export default async function Home() {
+  const siteInfo = await getSiteInfo();
+
   return (
     <div className="flex h-full items-center justify-center px-4 py-10">
       <div className="max-w-2xl w-full space-y-10 text-center">
+        {siteInfo.logo_url ? (
+          <Link href="/" className="inline-block mb-2">
+            <img
+              src={siteInfo.logo_url}
+              alt={siteInfo.site_name}
+              width={200}
+              height={60}
+              className="h-14 w-auto object-contain mx-auto"
+              loading="eager"
+            />
+          </Link>
+        ) : (
+          <div className="text-lg font-semibold text-slate-300">{siteInfo.site_name}</div>
+        )}
         <div className="space-y-4">
           <div className="pill mx-auto flex items-center gap-2">
             <SparklesIcon className="w-3 h-3" />

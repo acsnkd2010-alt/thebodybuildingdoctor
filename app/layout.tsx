@@ -1,17 +1,29 @@
 import './globals.css';
 import type { ReactNode } from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import LogoutButton from '@/components/LogoutButton';
+import SiteLogo from '@/components/SiteLogo';
 import { getSessionUser } from '@/lib/auth/session';
+import { getSiteInfo } from '@/lib/wordpress';
 import { UserIcon } from '@heroicons/react/24/outline';
 
-export const metadata = {
-  title: 'Bodybuilding Club Media Channel',
-  description: 'Members-only bodybuilding media channel powered by WordPress.'
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const siteInfo = await getSiteInfo();
+  const title = siteInfo.site_name || 'Bodybuilding Club Media Channel';
+  const description = siteInfo.site_description || 'Members-only bodybuilding media channel powered by WordPress.';
+  const keywords = siteInfo.site_keywords
+    ? siteInfo.site_keywords.split(/[\s,]+/).filter(Boolean)
+    : undefined;
+  return {
+    title: { default: title, template: `%s | ${title}` },
+    description,
+    keywords: keywords?.length ? keywords : undefined,
+  };
+}
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const user = await getSessionUser();
+  const [user, siteInfo] = await Promise.all([getSessionUser(), getSiteInfo()]);
 
   return (
     <html lang="en" className="h-full">
@@ -19,10 +31,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <div className="flex min-h-screen">
           <aside className="hidden md:flex w-64 flex-col border-r border-slate-800 bg-slate-950/70 backdrop-blur">
             <div className="px-6 py-6 border-b border-slate-800">
-              <div className="text-xs uppercase tracking-[0.25em] text-slate-400">
-                The Bodybuilding Doctor
-              </div>
-              <div className="mt-2 text-lg font-semibold">Media Channel</div>
+              <SiteLogo
+                logoUrl={siteInfo.logo_url || null}
+                siteName={siteInfo.site_name}
+                siteDescription={siteInfo.site_description}
+                variant="sidebar"
+              />
             </div>
             {user && (
               <nav className="flex-1 px-4 py-4 space-y-1 text-sm">
@@ -74,11 +88,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </div>
           </aside>
           <main className="flex-1 flex flex-col">
-            <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-              <div className="text-sm font-semibold">Bodybuilding Media</div>
+            <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/80 backdrop-blur gap-4">
+              <SiteLogo
+                logoUrl={siteInfo.logo_url || null}
+                siteName={siteInfo.site_name}
+                variant="header"
+              />
               <Link
                 href="/dashboard"
-                className="text-xs px-3 py-1 rounded-full bg-accent text-slate-950 font-semibold"
+                className="text-xs px-3 py-1 rounded-full bg-accent text-slate-950 font-semibold shrink-0"
               >
                 Dashboard
               </Link>
