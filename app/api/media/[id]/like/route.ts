@@ -74,14 +74,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
 
     const bmcMediaUrl = `${WORDPRESS_API_URL}/wp-json/wp/v2/bmc_media/${postId}`;
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const updateHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
     if (WORDPRESS_API_KEY) {
-      headers.Authorization = `Basic ${Buffer.from(`:${WORDPRESS_API_KEY}`).toString('base64')}`;
+      updateHeaders.Authorization = `Basic ${Buffer.from(`:${WORDPRESS_API_KEY}`).toString('base64')}`;
     }
 
     const updateRes = await fetch(bmcMediaUrl, {
       method: 'POST',
-      headers,
+      headers: updateHeaders,
       body: JSON.stringify({
         acf: {
           likes: newLikes,
