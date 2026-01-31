@@ -10,11 +10,11 @@ const config: Config = {
       colors: {
         background: '#020617',
         card: '#020617',
-        accent: '#f97316',
-        accentSoft: '#fed7aa'
+        accent: '#ffc702',
+        accentSoft: '#ffe066'
       },
       boxShadow: {
-        'soft-glow': '0 0 40px rgba(249,115,22,0.25)'
+        'soft-glow': '0 0 40px rgba(255,199,2,0.25)'
       }
     }
   },
