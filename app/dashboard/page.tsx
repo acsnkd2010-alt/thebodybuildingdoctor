@@ -1,5 +1,5 @@
-import MediaFeed from '@/components/MediaFeed';
-import { getSessionUser } from '@/lib/auth/session';
+import MediaFeed from '../../components/MediaFeed';
+import { getSessionUser } from '../../lib/auth/session';
 
 export const dynamic = 'force-dynamic';
 

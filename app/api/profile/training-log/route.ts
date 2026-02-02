@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth/session';
+import { getSessionUser } from '../../../../lib/auth/session';
 
 const WORDPRESS_API_URL = process.env.WORDPRESS_API_URL?.replace(/\/$/, '');
 const WORDPRESS_API_KEY = process.env.WORDPRESS_API_KEY;

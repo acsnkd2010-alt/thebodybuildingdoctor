@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchWordPressPosts } from '@/lib/wordpress';
-import { getSessionUser } from '@/lib/auth/session';
+import { fetchWordPressPosts } from '../../../lib/wordpress';
+import { getSessionUser } from '../../../lib/auth/session';
 
 export const dynamic = 'force-dynamic';
 

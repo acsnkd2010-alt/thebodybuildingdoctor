@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { SparklesIcon, FireIcon, TrophyIcon } from '@heroicons/react/24/outline';
-import { getSiteInfo } from '@/lib/wordpress';
+import { getSiteInfo } from '../lib/wordpress';
 
 export default async function Home() {
   const siteInfo = await getSiteInfo();

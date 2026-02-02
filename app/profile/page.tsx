@@ -1,5 +1,5 @@
-import { getSessionUser } from '@/lib/auth/session';
-import ProfileLikedFeed from '@/components/ProfileLikedFeed';
+import { getSessionUser } from '../../lib/auth/session';
+import ProfileLikedFeed from '../../components/ProfileLikedFeed';
 
 export const dynamic = 'force-dynamic';
 

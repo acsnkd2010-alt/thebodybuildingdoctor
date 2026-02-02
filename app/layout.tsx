@@ -2,10 +2,10 @@ import './globals.css';
 import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import LogoutButton from '@/components/LogoutButton';
-import SiteLogo from '@/components/SiteLogo';
-import { getSessionUser } from '@/lib/auth/session';
-import { getSiteInfo } from '@/lib/wordpress';
+import LogoutButton from '../components/LogoutButton';
+import SiteLogo from '../components/SiteLogo';
+import { getSessionUser } from '../lib/auth/session';
+import { getSiteInfo } from '../lib/wordpress';
 import { UserIcon } from '@heroicons/react/24/outline';
 
 export async function generateMetadata(): Promise<Metadata> {

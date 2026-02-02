@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Toast from '@/components/Toast';
+import Toast from '../../../components/Toast';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');

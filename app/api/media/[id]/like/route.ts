@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth/session';
-import { fetchWordPressPost } from '@/lib/wordpress';
+import { getSessionUser } from '../../../../../lib/auth/session';
+import { fetchWordPressPost } from '../../../../../lib/wordpress';
 
 const WORDPRESS_API_URL = process.env.WORDPRESS_API_URL?.replace(/\/$/, '');
 const WORDPRESS_API_KEY = process.env.WORDPRESS_API_KEY;
