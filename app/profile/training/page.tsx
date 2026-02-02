@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
-import Toast from '@/components/Toast';
+import Toast from '../../../components/Toast';
 
 interface TrainingEntry {
   id: string;

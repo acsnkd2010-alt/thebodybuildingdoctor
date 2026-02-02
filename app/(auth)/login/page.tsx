@@ -1,4 +1,4 @@
-import AuthForm from '@/components/AuthForm';
+import AuthForm from '../../../components/AuthForm';
 
 export const metadata = {
   title: 'Login | Bodybuilding Media Channel'
