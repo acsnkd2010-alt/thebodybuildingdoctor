@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { HeartIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import Image from 'next/image';
@@ -31,10 +31,15 @@ interface MediaCardProps {
 }
 
 export default function MediaCard({ post, featuredImage, featuredVideoUrl, featuredAudioUrl, userId }: MediaCardProps) {
+  const router = useRouter();
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(post.acf?.likes || 0);
   const [isToggling, setIsToggling] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  function goToPost() {
+    router.push(`/dashboard/post/${post.id}`);
+  }
 
   useEffect(() => {
     // Check initial like status
@@ -92,7 +97,7 @@ export default function MediaCard({ post, featuredImage, featuredVideoUrl, featu
     year: 'numeric',
   });
 
-  // Mobile: square feed style. Desktop: same 4/3 ratio as before
+  // Mobile: square feed style. Desktop: same 4/3 ratio as before.
   const mediaArea = (
     <div className="relative w-full overflow-hidden bg-slate-900 aspect-square max-h-[min(70vmin,420px)] mx-auto md:aspect-[4/3] md:max-h-none">
       {featuredVideoUrl ? (
@@ -126,8 +131,19 @@ export default function MediaCard({ post, featuredImage, featuredVideoUrl, featu
   );
 
   return (
-    <Link href={`/dashboard/post/${post.id}`} className="block group">
-      <div className="card-surface relative overflow-hidden flex flex-col hover:border-slate-600 transition-colors rounded-2xl">
+    <div className="group">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={goToPost}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            goToPost();
+          }
+        }}
+        className="card-surface relative overflow-hidden flex flex-col hover:border-slate-600 transition-colors rounded-2xl cursor-pointer"
+      >
         {mediaArea}
         <div className="p-3 md:p-4 flex flex-col gap-2">
           <h3
@@ -141,6 +157,7 @@ export default function MediaCard({ post, featuredImage, featuredVideoUrl, featu
           <div className="flex items-center justify-between pt-2 mt-1 border-t border-slate-800">
             <span className="text-[10px] text-slate-500">{date}</span>
             <button
+              type="button"
               onClick={handleLike}
               disabled={isToggling}
               className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
@@ -168,6 +185,6 @@ export default function MediaCard({ post, featuredImage, featuredVideoUrl, featu
           duration={2000}
         />
       )}
-    </Link>
+    </div>
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { HeartIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
@@ -82,12 +81,18 @@ export default function SinglePostView({ post, featuredImageUrl, featuredVideoUr
     }
   }
 
-  const dateStr = new Date(post.date).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const dateStr =
+    post.date && !Number.isNaN(Date.parse(post.date))
+      ? new Date(post.date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : '';
+
+  const titleHtml = post?.title?.rendered ?? '';
+  const contentHtml = post?.content?.rendered ?? '';
 
   return (
     <article className="max-w-4xl mx-auto">
@@ -105,7 +110,7 @@ export default function SinglePostView({ post, featuredImageUrl, featuredVideoUr
         </p>
         <h1
           className="text-3xl md:text-4xl font-bold leading-tight mb-4"
-          dangerouslySetInnerHTML={{ __html: post.title.rendered }}
+          dangerouslySetInnerHTML={{ __html: titleHtml }}
         />
         <div className="flex items-center gap-4 text-sm text-slate-400">
           <button
@@ -137,13 +142,11 @@ export default function SinglePostView({ post, featuredImageUrl, featuredVideoUr
 
       {!featuredVideoUrl && featuredImageUrl && (
         <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-900 mb-6">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={featuredImageUrl}
             alt=""
-            fill
-            className="object-cover"
-            sizes="(max-width: 896px) 100vw, 896px"
-            priority
+            className="w-full h-full object-cover"
           />
         </div>
       )}
@@ -156,7 +159,7 @@ export default function SinglePostView({ post, featuredImageUrl, featuredVideoUr
 
       <div
         className="single-post-content text-slate-300 leading-relaxed space-y-4 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-4 [&_a]:text-sky-400 [&_a]:underline [&_a:hover]:text-sky-300 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-1 [&_img]:rounded-xl [&_img]:max-w-full [&_img]:h-auto"
-        dangerouslySetInnerHTML={{ __html: post.content.rendered }}
+        dangerouslySetInnerHTML={{ __html: contentHtml }}
       />
 
       {toast && (

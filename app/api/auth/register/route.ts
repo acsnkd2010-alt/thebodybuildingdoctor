@@ -90,12 +90,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const userRole = wpUser.role || authData?.user?.role || 'media_channel';
     const secret = new TextEncoder().encode(JWT_SECRET);
     const token = await new SignJWT({
       id: wpUser.id,
       email: wpUser.email || email,
       username: wpUser.username || username,
       name: wpUser.name || wpUser.display_name,
+      role: userRole,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('30d')

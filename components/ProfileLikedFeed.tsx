@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import MediaCard from './MediaCard';
 
 interface MediaPost {
@@ -32,12 +33,33 @@ interface ProfileLikedFeedProps {
   };
 }
 
+interface ProfileDetails {
+  name?: string;
+  profile_picture_url?: string;
+  phone?: string;
+  date_of_birth?: string;
+}
+
 export default function ProfileLikedFeed({ user }: ProfileLikedFeedProps) {
   const [likedPosts, setLikedPosts] = useState<MediaPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<ProfileDetails | null>(null);
 
   useEffect(() => {
     loadLikedPosts();
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setProfile({
+            name: data.user.name ?? data.user.username,
+            profile_picture_url: data.user.profile_picture_url,
+            phone: data.user.phone,
+            date_of_birth: data.user.date_of_birth,
+          });
+        }
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -91,32 +113,56 @@ export default function ProfileLikedFeed({ user }: ProfileLikedFeedProps) {
     );
   }
 
+  const displayName = profile?.name || user.name || user.username || 'Your';
+
   return (
     <div className="h-full overflow-y-auto px-4 md:px-8 py-6 md:py-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="pill w-fit mb-2">Your Profile</div>
-            <h1 className="text-2xl md:text-3xl font-semibold mb-2">
-              {user.name || user.username || 'Your'} Liked Content
-            </h1>
-            <p className="text-sm text-slate-400">
-              Media you&apos;ve liked from the club channel
-            </p>
+          <div className="flex items-center gap-4">
+            <Link href="/profile/edit" className="shrink-0 rounded-full overflow-hidden border-2 border-slate-700 w-14 h-14 md:w-16 md:h-16 focus:ring-2 focus:ring-accent/70">
+              {profile?.profile_picture_url ? (
+                <img src={profile.profile_picture_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-slate-700 flex items-center justify-center text-slate-400 text-lg font-semibold">
+                  {(displayName || '?').charAt(0).toUpperCase()}
+                </div>
+              )}
+            </Link>
+            <div>
+              <div className="pill w-fit mb-2">Your Profile</div>
+              <h1 className="text-2xl md:text-3xl font-semibold mb-2">
+                {displayName} Liked Content
+              </h1>
+              <p className="text-sm text-slate-400">
+                Media you&apos;ve liked from the club channel
+              </p>
+              {(profile?.phone || profile?.date_of_birth) && (
+                <p className="text-xs text-slate-500 mt-1">
+                  {[profile.phone, profile.date_of_birth].filter(Boolean).join(' · ')}
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a
+            <Link
               href="/profile/edit"
               className="inline-flex items-center rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800/80 transition"
             >
               Edit profile
-            </a>
-            <a
+            </Link>
+            <Link
+              href="/profile/training"
+              className="inline-flex items-center rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800/80 transition"
+            >
+              Training log
+            </Link>
+            <Link
               href="/profile/password"
               className="inline-flex items-center rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800/80 transition"
             >
               Change password
-            </a>
+            </Link>
           </div>
         </div>
 

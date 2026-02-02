@@ -75,12 +75,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 >
                   Login
                 </Link>
-                <Link
-                  href="/register"
-                  className="block rounded-lg px-3 py-2 text-slate-200 hover:bg-slate-800/70 transition"
-                >
-                  Register
-                </Link>
               </nav>
             )}
             <div className="px-6 py-4 text-xs text-slate-500 border-t border-slate-800">

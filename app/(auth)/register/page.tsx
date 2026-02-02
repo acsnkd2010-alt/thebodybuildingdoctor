@@ -1,14 +1,9 @@
-import AuthForm from '@/components/AuthForm';
+import { redirect } from 'next/navigation';
 
 export const metadata = {
-  title: 'Register | Bodybuilding Media Channel'
+  title: 'Register | Bodybuilding Media Channel',
 };
 
 export default function RegisterPage() {
-  return (
-    <div className="flex h-full items-center justify-center px-4 py-10">
-      <AuthForm mode="register" />
-    </div>
-  );
+  redirect('/login');
 }
-

@@ -17,10 +17,11 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, email } = body;
-    if (!name && !email) {
+    const { name, email, profile_picture_url, phone, date_of_birth } = body;
+    const hasAny = name !== undefined || email !== undefined || profile_picture_url !== undefined || phone !== undefined || date_of_birth !== undefined;
+    if (!hasAny) {
       return NextResponse.json(
-        { message: 'Provide at least name or email to update' },
+        { message: 'Provide at least one field to update (name, email, profile_picture_url, phone, date_of_birth)' },
         { status: 400 }
       );
     }
@@ -45,18 +46,28 @@ export async function PATCH(request: NextRequest) {
         user_id: user.id,
         name: name ?? undefined,
         email: email ?? undefined,
+        profile_picture_url: profile_picture_url ?? undefined,
+        phone: phone ?? undefined,
+        date_of_birth: date_of_birth ?? undefined,
       }),
     });
 
     const data = await wpRes.json().catch(() => ({}));
+    const wpUser = data?.user ?? data;
     const updatedUser = {
       id: user.id,
-      email: (wpRes.ok ? (data.email ?? email) : null) ?? user.email,
-      username: (wpRes.ok ? (data.username ?? user.username) : null) ?? user.username,
-      name: (wpRes.ok ? (data.name ?? name) : null) ?? user.name ?? name ?? user.name,
+      email: (wpRes.ok ? (wpUser.email ?? email) : null) ?? user.email,
+      username: (wpRes.ok ? (wpUser.username ?? user.username) : null) ?? user.username,
+      name: (wpRes.ok ? (wpUser.name ?? name) : null) ?? user.name ?? name ?? user.name,
+      profile_picture_url: wpRes.ok && wpUser.profile_picture_url !== undefined ? wpUser.profile_picture_url : undefined,
+      phone: wpRes.ok && wpUser.phone !== undefined ? wpUser.phone : undefined,
+      date_of_birth: wpRes.ok && wpUser.date_of_birth !== undefined ? wpUser.date_of_birth : undefined,
     };
     if (name !== undefined) updatedUser.name = name;
     if (email !== undefined) updatedUser.email = email;
+    if (profile_picture_url !== undefined) updatedUser.profile_picture_url = profile_picture_url;
+    if (phone !== undefined) updatedUser.phone = phone;
+    if (date_of_birth !== undefined) updatedUser.date_of_birth = date_of_birth;
 
     if (!wpRes.ok) {
       if (data?.code === 'rest_no_route') {
@@ -77,6 +88,7 @@ export async function PATCH(request: NextRequest) {
         email: updatedUser.email,
         username: updatedUser.username,
         name: updatedUser.name,
+        role: user.role,
       })
         .setProtectedHeader({ alg: 'HS256' })
         .setExpirationTime('30d')

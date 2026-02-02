@@ -30,6 +30,8 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     setError(null);
 
     try {
+      // Login: send email (holds "Email or Username" value), username (empty), password.
+      // Register: send email, username, password. API and WordPress expect "username" and "password" keys.
       const res = await fetch(`/api/auth/${mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -87,21 +89,26 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           </div>
         )}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-300">
+          <label className="text-xs font-medium text-slate-300" htmlFor="login-id">
             Email or Username
           </label>
           <input
+            id="login-id"
             type="text"
+            autoComplete="username"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email or username"
             className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/70"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-300">Password</label>
+          <label className="text-xs font-medium text-slate-300" htmlFor="login-password">Password</label>
           <input
+            id="login-password"
             type="password"
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             required
             minLength={6}
             value={password}

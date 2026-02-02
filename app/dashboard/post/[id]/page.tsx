@@ -7,7 +7,7 @@ import SinglePostView from '@/components/SinglePostView';
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export default async function SinglePostPage({ params }: PageProps) {
@@ -29,7 +29,7 @@ export default async function SinglePostPage({ params }: PageProps) {
     );
   }
 
-  const { id } = await params;
+  const id = params?.id ?? '';
   const postId = parseInt(id, 10);
   if (isNaN(postId)) {
     notFound();
@@ -39,6 +39,10 @@ export default async function SinglePostPage({ params }: PageProps) {
   try {
     post = await fetchWordPressPost(postId);
   } catch {
+    notFound();
+  }
+
+  if (!post || typeof post.id !== 'number') {
     notFound();
   }
 
