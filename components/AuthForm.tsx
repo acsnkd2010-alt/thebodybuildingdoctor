@@ -1,7 +1,12 @@
- 'use client';
+'use client';
 
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+
+import { auth } from '@/lib/firebase/client';
+import { getFirebaseAuthErrorMessage } from '@/lib/firebase/auth-errors';
+
 import Toast from './Toast';
 
 type Mode = 'login' | 'register';
@@ -24,43 +29,60 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       ? 'Log in to unlock members-only bodybuilding content.'
       : 'Create your account to access the full media channel.';
 
+  async function createSession(idToken: string) {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const errorMessage = data.message || 'Something went wrong';
+      setError(errorMessage);
+      setToast({ message: errorMessage, type: 'error' });
+      throw new Error(errorMessage);
+    }
+
+    return res.json();
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Login: send email (holds "Email or Username" value), username (empty), password.
-      // Register: send email, username, password. API and WordPress expect "username" and "password" keys.
-      const res = await fetch(`/api/auth/${mode}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, password })
-      });
+      let idToken: string;
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const errorMessage = data.message || 'Something went wrong';
-        setError(errorMessage);
-        setToast({ message: errorMessage, type: 'error' });
-        throw new Error(errorMessage);
+      if (mode === 'login') {
+        const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+        idToken = await credential.user.getIdToken();
+      } else {
+        const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        if (username.trim()) {
+          await updateProfile(credential.user, { displayName: username.trim() });
+        }
+        idToken = await credential.user.getIdToken();
       }
 
-      const result = await res.json();
-      
-      // Show success message
+      await createSession(idToken);
+
       setToast({
         message: mode === 'login' ? 'Welcome back! Redirecting...' : 'Account created! Redirecting...',
         type: 'success',
       });
 
-      // Redirect after a brief delay
       setTimeout(() => {
         router.push(redirectTo);
         router.refresh();
       }, 1000);
-    } catch (err: any) {
-      // Error already handled above
+    } catch (err: unknown) {
+      if (!error) {
+        const errorMessage = getFirebaseAuthErrorMessage(err);
+        setError(errorMessage);
+        setToast({ message: errorMessage, type: 'error' });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -78,7 +100,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       <form className="space-y-4" onSubmit={handleSubmit}>
         {mode === 'register' && (
           <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-300">Username</label>
+            <label className="text-xs font-medium text-slate-300">Display name</label>
             <input
               type="text"
               required
@@ -90,16 +112,16 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         )}
         <div className="space-y-1">
           <label className="text-xs font-medium text-slate-300" htmlFor="login-id">
-            Email or Username
+            Email
           </label>
           <input
             id="login-id"
-            type="text"
+            type="email"
             autoComplete="username"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email or username"
+            placeholder="you@example.com"
             className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/70"
           />
         </div>
@@ -143,8 +165,8 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         )}
       </form>
       <p className="mt-4 text-[11px] text-slate-500">
-        By continuing you agree to the club&apos;s members-only terms. Your credentials
-        are authenticated via the WordPress backend.
+        By continuing you agree to the club&apos;s members-only terms. Access requires a Media
+        Channel or administrator role on your Firebase account.
       </p>
       {toast && (
         <Toast
@@ -156,4 +178,3 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     </div>
   );
 }
-

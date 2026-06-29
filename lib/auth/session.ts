@@ -1,16 +1,18 @@
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 
+import { ALLOWED_APP_ROLES, hasAppAccess, parseRoles } from './roles';
+
 const JWT_SECRET = process.env.JWT_SECRET;
 
-/** Only these roles can access the Next.js app. */
-const ALLOWED_APP_ROLES = ['media_channel', 'administrator'];
-
 export type SessionUser = {
+  uid: string;
+  /** WordPress user ID from Firebase custom claims (used for WP API calls). */
   id: number;
   email: string;
   username?: string;
   name?: string;
+  roles: string[];
   role?: string;
 };
 
@@ -23,21 +25,25 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   try {
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
-    const role = payload.role ? String(payload.role) : undefined;
+    const roles = parseRoles(payload.roles ?? payload.role);
 
-    if (!role || !ALLOWED_APP_ROLES.includes(role)) {
+    if (!hasAppAccess(roles)) {
       return null;
     }
 
+    const uid = payload.uid ? String(payload.uid) : '';
+    if (!uid) return null;
+
     return {
-      id: Number(payload.id),
-      email: String(payload.email),
+      uid,
+      id: Number(payload.id) || 0,
+      email: String(payload.email || ''),
       username: payload.username ? String(payload.username) : undefined,
       name: payload.name ? String(payload.name) : undefined,
-      role,
+      roles,
+      role: roles.find((role) => ALLOWED_APP_ROLES.includes(role as (typeof ALLOWED_APP_ROLES)[number])),
     };
   } catch {
     return null;
   }
 }
-

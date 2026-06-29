@@ -6,12 +6,16 @@
     "dev": "WATCHPACK_POLLING=true WATCHPACK_POLLING_INTERVAL=1000 next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "rm -rf .next && npx vercel deploy --prod --yes --archive=tgz"
   },
   "dependencies": {
     "@heroicons/react": "2.1.5",
     "autoprefixer": "10.4.19",
+    "firebase": "^12.15.0",
+    "firebase-admin": "^14.1.0",
     "jose": "5.2.4",
+    "mongodb": "^6.21.0",
     "next": "14.2.5",
     "postcss": "8.4.38",
     "react": "18.3.1",

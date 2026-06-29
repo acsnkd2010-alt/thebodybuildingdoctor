@@ -162,7 +162,7 @@ export default function TrainingLogPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 rounded-full bg-accent text-slate-950 text-sm font-semibold py-2 px-4 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-full bg-accent text-white text-sm font-semibold py-2 px-4 disabled:opacity-50"
             >
               <PlusIcon className="h-4 w-4" />
               {isSubmitting ? 'Adding...' : 'Add entry'}

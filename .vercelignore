@@ -1,0 +1,24 @@
+# Dependencies & build output (Vercel installs/builds these on the server)
+node_modules
+node_modules/**
+.next
+.next/**
+**/.next
+**/.next/**
+
+# Local env & secrets
+.env
+.env.*
+!.env.example
+serviceAccountKey.json
+*.pem
+
+# Dev artifacts
+*.log
+.DS_Store
+tsconfig.tsbuildinfo
+coverage
+.turbo
+
+# Scripts not needed at runtime
+scripts

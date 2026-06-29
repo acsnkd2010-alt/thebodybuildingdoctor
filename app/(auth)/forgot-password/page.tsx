@@ -1,14 +1,18 @@
 'use client';
 
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { useState } from 'react';
 import Link from 'next/link';
+
+import { auth } from '@/lib/firebase/client';
+import { getFirebaseAuthErrorMessage } from '@/lib/firebase/auth-errors';
+
 import Toast from '../../../components/Toast';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [resetUrl, setResetUrl] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -16,27 +20,15 @@ export default function ForgotPasswordPage() {
     if (!email.trim()) return;
     setIsSubmitting(true);
     setToast(null);
-    setResetUrl(null);
     try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setToast({ message: data.message || 'Failed to send reset email', type: 'error' });
-        if (data.reset_url) setResetUrl(data.reset_url);
-        return;
-      }
+      await sendPasswordResetEmail(auth, email.trim());
       setSent(true);
       setToast({
-        message: data.message || 'If an account exists for this email, you will receive a reset link.',
+        message: 'If an account exists for this email, you will receive a reset link.',
         type: 'success',
       });
-      if (data.reset_url) setResetUrl(data.reset_url);
-    } catch {
-      setToast({ message: 'Something went wrong', type: 'error' });
+    } catch (error) {
+      setToast({ message: getFirebaseAuthErrorMessage(error), type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -81,26 +73,11 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-full bg-accent text-slate-950 text-sm font-semibold py-2.5 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-accent/90 transition"
+              className="w-full rounded-full bg-accent text-white text-sm font-semibold py-2.5 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-accent/90 transition"
             >
               {isSubmitting ? 'Sending...' : 'Send reset link'}
             </button>
           </form>
-        )}
-
-        {resetUrl && (
-          <p className="mt-4 text-sm text-slate-400">
-            You can also{' '}
-            <a
-              href={resetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent underline hover:no-underline"
-            >
-              reset your password on WordPress
-            </a>
-            .
-          </p>
         )}
 
         <p className="mt-6 text-center">

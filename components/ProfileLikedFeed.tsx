@@ -173,7 +173,7 @@ export default function ProfileLikedFeed({ user }: ProfileLikedFeedProps) {
             </p>
             <a
               href="/dashboard"
-              className="inline-flex items-center rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-accent/90 transition"
+              className="inline-flex items-center rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent/90 transition"
             >
               Browse Media Channel
             </a>
