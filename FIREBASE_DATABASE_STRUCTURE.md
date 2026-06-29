@@ -7,6 +7,7 @@ Source: WordPress (`triotradellc.com`) → Firebase Auth + Firestore
 
 ## Firebase Config (Expo / Mobile)
 
+
 ```env
 EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyAXB-LXEAZbf_JjcgM8rkNi1Cdi9ubd2Kc
 EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=thebodybuildingdoctor.firebaseapp.com
