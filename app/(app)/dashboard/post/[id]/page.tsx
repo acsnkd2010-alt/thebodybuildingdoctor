@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { fetchWordPressPost, getFeaturedImageUrl, getFeaturedVideoUrl, getFeaturedAudioUrl } from '../../../../lib/wordpress';
-import { getSessionUser } from '../../../../lib/auth/session';
-import SinglePostView from '../../../../components/SinglePostView';
+import { fetchWordPressPost, getFeaturedImageUrl, getFeaturedVideoUrl, getFeaturedAudioUrl } from '@/lib/wordpress';
+import { getSessionUser } from '@/lib/auth/session';
+import SinglePostView from '@/components/SinglePostView';
 
 export const dynamic = 'force-dynamic';
 

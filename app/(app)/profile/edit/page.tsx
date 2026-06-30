@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import Toast from '../../../components/Toast';
+import Toast from '@/components/Toast';
 
 export default function ProfileEditPage() {
   const router = useRouter();

@@ -39,7 +39,7 @@ export async function createWebSessionFromIdToken(idToken: string): Promise<Sess
       status: 403,
       code: 'INSUFFICIENT_PERMISSIONS',
       message:
-        'Only administrators can access this app. Contact your system administrator for access.',
+        'You do not have access to this app. Contact your administrator for a media channel or admin account.',
     };
   }
 

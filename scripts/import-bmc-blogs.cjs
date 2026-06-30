@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Import WordPress bmc_media posts into MongoDB blogs collection.
+ * Import WordPress bmc_media posts into Firestore blogs collection.
  *
  * Usage:
  *   node scripts/import-bmc-blogs.cjs
@@ -9,30 +9,7 @@
  */
 const { readFileSync } = require('fs');
 const { resolve } = require('path');
-const { MongoClient } = require('mongodb');
-
-function loadEnvLocal() {
-  try {
-    const raw = readFileSync(resolve(__dirname, '../.env.local'), 'utf-8');
-    for (const line of raw.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const idx = trimmed.indexOf('=');
-      if (idx === -1) continue;
-      const key = trimmed.slice(0, idx);
-      let value = trimmed.slice(idx + 1);
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      if (!process.env[key]) process.env[key] = value;
-    }
-  } catch {
-    // optional
-  }
-}
+const { FieldValue, getFirestoreDb, loadEnvLocal } = require('./firestore-client.cjs');
 
 function parseArgs() {
   const args = { file: null, url: 'https://triotradellc.com' };
@@ -177,22 +154,13 @@ async function main() {
   loadEnvLocal();
   const args = parseArgs();
 
-  const uri = process.env.MONGODB_URI;
-  const dbName = process.env.MONGODB_DATABASE ?? 'thebodybuildingdoctor';
-  if (!uri) {
-    console.error('Missing MONGODB_URI in web/.env.local');
-    process.exit(1);
-  }
-
   const blogs = args.file
     ? loadFromFile(args.file)
     : await fetchAllFromWordPress(args.url);
 
   console.log(`Importing ${blogs.length} blog posts...`);
 
-  const client = new MongoClient(uri);
-  await client.connect();
-  const db = client.db(dbName);
+  const db = getFirestoreDb();
   const collection = db.collection('blogs');
 
   let inserted = 0;
@@ -200,31 +168,28 @@ async function main() {
 
   for (const blog of blogs) {
     const { _id, ...fields } = blog;
-    const existing = await collection.findOne({ _id });
-    const now = new Date();
+    const ref = collection.doc(String(_id));
+    const existing = await ref.get();
 
-    if (existing) {
-      await collection.updateOne(
-        { _id },
+    if (existing.exists) {
+      await ref.set(
         {
-          $set: {
-            ...fields,
-            updatedAt: now,
-          },
+          ...fields,
+          updatedAt: FieldValue.serverTimestamp(),
         },
+        { merge: true },
       );
       updated += 1;
     } else {
-      await collection.insertOne({
-        _id,
+      await ref.set({
         ...fields,
-        createdAt: now,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
       inserted += 1;
     }
   }
 
-  await client.close();
   console.log(`Done. Inserted: ${inserted}, updated: ${updated}, total: ${blogs.length}`);
 }
 

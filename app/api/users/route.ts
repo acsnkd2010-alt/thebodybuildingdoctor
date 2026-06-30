@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-import { getMongoDb } from '@/lib/mongodb';
 import { verifyBearerToken } from '@/lib/auth/verify-firebase-token';
 
 export async function POST() {

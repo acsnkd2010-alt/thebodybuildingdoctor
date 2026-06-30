@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/firebase/client';
 import { getFirebaseAuthErrorMessage } from '@/lib/firebase/auth-errors';
 
-import Toast from '../../../components/Toast';
+import Toast from '@/components/Toast';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');

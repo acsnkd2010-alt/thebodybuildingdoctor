@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
+  Bars3Icon,
   PencilSquareIcon,
   PlusIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
 
+import RichTextEditor from '@/components/admin/RichTextEditor';
 import {
   createLesson,
   deleteLesson,
@@ -30,11 +30,26 @@ function sortLessons(items: Lesson[]) {
   return [...items].sort((a, b) => a.order - b.order);
 }
 
+function reorderItems(items: Lesson[], sourceId: string, targetId: string) {
+  const sourceIndex = items.findIndex((lesson) => lesson.id === sourceId);
+  const targetIndex = items.findIndex((lesson) => lesson.id === targetId);
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+    return items;
+  }
+
+  const next = [...items];
+  const [moved] = next.splice(sourceIndex, 1);
+  next.splice(targetIndex, 0, moved);
+  return next;
+}
+
 export default function LessonManager({ courseId, initialLessons }: LessonManagerProps) {
   const [lessons, setLessons] = useState(() => sortLessons(initialLessons));
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [reorderingId, setReorderingId] = useState<string | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
@@ -70,23 +85,46 @@ export default function LessonManager({ courseId, initialLessons }: LessonManage
     setLessons(sortLessons(updated));
   }
 
-  async function handleMove(lessonId: string, direction: 'up' | 'down') {
-    const index = lessons.findIndex((lesson) => lesson.id === lessonId);
-    if (index < 0) return;
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= lessons.length) return;
+  function handleDragStart(event: React.DragEvent, lessonId: string) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', lessonId);
+    setDraggingId(lessonId);
+  }
 
-    const next = [...lessons];
-    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+  function handleDragEnd() {
+    setDraggingId(null);
+    setDragOverId(null);
+  }
 
-    setReorderingId(lessonId);
+  function handleDragOver(event: React.DragEvent, lessonId: string) {
+    event.preventDefault();
+    if (draggingId && draggingId !== lessonId) {
+      setDragOverId(lessonId);
+    }
+  }
+
+  async function handleDrop(event: React.DragEvent, targetId: string) {
+    event.preventDefault();
+    const sourceId = event.dataTransfer.getData('text/plain');
+    setDraggingId(null);
+    setDragOverId(null);
+
+    if (!sourceId || sourceId === targetId || isReordering) return;
+
+    const previous = lessons;
+    const next = reorderItems(lessons, sourceId, targetId);
+    if (next === lessons) return;
+
+    setLessons(next);
+    setIsReordering(true);
     setError(null);
     try {
       await persistOrder(next);
     } catch (err) {
+      setLessons(previous);
       setError(err instanceof Error ? err.message : 'Failed to reorder lessons');
     } finally {
-      setReorderingId(null);
+      setIsReordering(false);
     }
   }
 
@@ -161,7 +199,10 @@ export default function LessonManager({ courseId, initialLessons }: LessonManage
           <h2 className="text-lg font-semibold text-slate-100">Lessons</h2>
           <p className="text-sm text-slate-400">
             {lessons.length} lesson{lessons.length === 1 ? '' : 's'}
-            {lessons.length > 1 && ' · use arrows to reorder'}
+            {lessons.length > 1 && ' · drag to reorder'}
+            {isReordering && (
+              <span className="ml-2 text-xs text-slate-500">Saving order…</span>
+            )}
           </p>
         </div>
         <button
@@ -204,11 +245,12 @@ export default function LessonManager({ courseId, initialLessons }: LessonManage
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Content (HTML)</label>
-            <textarea
-              className={`${inputClass} min-h-[80px]`}
+            <label className="block text-xs text-slate-400 mb-1">Content</label>
+            <RichTextEditor
               value={contentHtml}
-              onChange={(e) => setContentHtml(e.target.value)}
+              onChange={setContentHtml}
+              placeholder="Lesson notes, instructions, or supplementary text…"
+              minHeight="200px"
             />
           </div>
           <label className="inline-flex items-center gap-2 text-sm text-slate-300">
@@ -245,34 +287,37 @@ export default function LessonManager({ courseId, initialLessons }: LessonManage
       ) : (
         <div className="card-surface divide-y divide-slate-800">
           {lessons.map((lesson, index) => (
-            <div key={lesson.id} className="flex items-start justify-between gap-4 p-4">
+            <div
+              key={lesson.id}
+              onDragOver={(event) => handleDragOver(event, lesson.id)}
+              onDragLeave={() => {
+                if (dragOverId === lesson.id) setDragOverId(null);
+              }}
+              onDrop={(event) => handleDrop(event, lesson.id)}
+              className={`flex items-start justify-between gap-4 p-4 transition-colors ${
+                draggingId === lesson.id ? 'opacity-40' : ''
+              } ${
+                dragOverId === lesson.id
+                  ? 'bg-accent/10 ring-1 ring-inset ring-accent/40'
+                  : ''
+              }`}
+            >
               <div className="flex items-start gap-3 min-w-0">
-                <div className="flex flex-col gap-1 pt-0.5">
-                  <button
-                    type="button"
-                    title="Move up"
-                    disabled={index === 0 || reorderingId !== null}
-                    onClick={() => handleMove(lesson.id, 'up')}
-                    className="rounded border border-slate-700 p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    <ArrowUpIcon className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    title="Move down"
-                    disabled={index === lessons.length - 1 || reorderingId !== null}
-                    onClick={() => handleMove(lesson.id, 'down')}
-                    className="rounded border border-slate-700 p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    <ArrowDownIcon className="w-3.5 h-3.5" />
-                  </button>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  draggable={!isReordering && lessons.length > 1}
+                  title="Drag to reorder"
+                  aria-label={`Drag to reorder ${lesson.title}`}
+                  onDragStart={(event) => handleDragStart(event, lesson.id)}
+                  onDragEnd={handleDragEnd}
+                  className="mt-0.5 rounded border border-slate-700 p-1.5 text-slate-500 hover:bg-slate-800 hover:text-slate-300 cursor-grab active:cursor-grabbing disabled:opacity-30 select-none touch-none"
+                >
+                  <Bars3Icon className="w-4 h-4 pointer-events-none" />
                 </div>
                 <div className="min-w-0">
                   <div className="font-medium text-slate-100">
                     {index + 1}. {lesson.title}
-                    {reorderingId === lesson.id && (
-                      <span className="ml-2 text-xs text-slate-500">Saving order…</span>
-                    )}
                   </div>
                   <div className="text-xs text-slate-500 mt-1 truncate">
                     {lesson.videoUrl || 'No video URL'} · {formatDuration(lesson.durationSec)}

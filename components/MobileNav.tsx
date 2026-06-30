@@ -8,11 +8,17 @@ import LogoutButton from '@/components/LogoutButton';
 
 type MobileNavProps = {
   isAdmin: boolean;
+  mediaChannelOnly?: boolean;
   userLabel?: string;
   siteName: string;
 };
 
-export default function MobileNav({ isAdmin, userLabel, siteName }: MobileNavProps) {
+export default function MobileNav({
+  isAdmin,
+  mediaChannelOnly = false,
+  userLabel,
+  siteName,
+}: MobileNavProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -49,6 +55,7 @@ export default function MobileNav({ isAdmin, userLabel, siteName }: MobileNavPro
             <div className="flex-1 overflow-y-auto px-3 py-4">
               <DashboardNav
                 isAdmin={isAdmin}
+                mediaChannelOnly={mediaChannelOnly}
                 userLabel={userLabel}
                 onNavigate={() => setOpen(false)}
               />

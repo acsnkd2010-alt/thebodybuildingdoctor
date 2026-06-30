@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Import Tutor LMS export into cloud Firestore (MongoDB API).
+ * Import Tutor LMS export into Firestore.
  * Usage: node scripts/import-tutor-courses.cjs [--file=../data/courses-tutor-export.json]
  */
 const { readFileSync } = require('fs');
 const { resolve } = require('path');
-const { MongoClient } = require('mongodb');
+const { FieldValue, getFirestoreDb, loadEnvLocal } = require('./firestore-client.cjs');
 
 function loadEnvLocal() {
   const raw = readFileSync(resolve(__dirname, '../.env.local'), 'utf-8');
@@ -113,21 +113,11 @@ async function main() {
     fileArg ? fileArg.slice('--file='.length) : '../../data/courses-tutor-export.json',
   );
 
-  const uri = process.env.MONGODB_URI;
-  const dbName = process.env.MONGODB_DATABASE ?? 'thebodybuildingdoctor';
-
-  if (!uri) {
-    console.error('Missing MONGODB_URI in web/.env.local');
-    process.exit(1);
-  }
-
   const exportData = JSON.parse(readFileSync(exportPath, 'utf-8'));
   const courses = exportData.courses || [];
 
-  const client = new MongoClient(uri);
-  await client.connect();
-  const db = client.db(dbName);
-  const now = new Date();
+  const db = getFirestoreDb();
+  const now = FieldValue.serverTimestamp();
 
   let courseCount = 0;
   let lessonCount = 0;
@@ -145,7 +135,7 @@ async function main() {
       const durationSec = lessonDurationSec(lesson);
       totalDurationSec += durationSec;
       return {
-        _id: `tutor-lesson-${lesson.wordpress_id || lesson.id}`,
+        id: `tutor-lesson-${lesson.wordpress_id || lesson.id}`,
         courseId,
         title: lesson.title,
         slug: lesson.slug,
@@ -160,42 +150,37 @@ async function main() {
       };
     });
 
-    await db.collection('courses').updateOne(
-      { _id: courseId },
+    const courseRef = db.collection('courses').doc(courseId);
+    const existingCourse = await courseRef.get();
+
+    await courseRef.set(
       {
-        $set: {
-          title: course.title,
-          slug: course.slug,
-          description: stripHtml(course.description_html) || course.excerpt || course.title,
-          descriptionHtml: course.description_html || '',
-          thumbnailUrl: course.thumbnail?.url || '',
-          instructorName: 'The Bodybuilding Doctor',
-          level: inferLevel(course),
-          category: inferCategory(course),
-          published: course.status === 'publish',
-          priceCents: 0,
-          lessonCount: lessonDocs.length,
-          totalDurationSec,
-          order: index + 1,
-          tutorId: course.wordpress_id || course.id,
-          tutorLink: course.link || '',
-          updatedAt: now,
-        },
-        $setOnInsert: {
-          createdAt: parseDate(course.created_at),
-        },
+        title: course.title,
+        slug: course.slug,
+        description: stripHtml(course.description_html) || course.excerpt || course.title,
+        descriptionHtml: course.description_html || '',
+        thumbnailUrl: course.thumbnail?.url || '',
+        instructorName: 'The Bodybuilding Doctor',
+        level: inferLevel(course),
+        category: inferCategory(course),
+        published: course.status === 'publish',
+        priceCents: 0,
+        lessonCount: lessonDocs.length,
+        totalDurationSec,
+        order: index + 1,
+        tutorId: course.wordpress_id || course.id,
+        tutorLink: course.link || '',
+        updatedAt: now,
+        ...(existingCourse.exists ? {} : { createdAt: parseDate(course.created_at) }),
       },
-      { upsert: true },
+      { merge: true },
     );
 
     courseCount += 1;
 
     for (const lessonDoc of lessonDocs) {
-      await db.collection('lessons').updateOne(
-        { _id: lessonDoc._id },
-        { $set: lessonDoc },
-        { upsert: true },
-      );
+      const { id, ...lessonData } = lessonDoc;
+      await db.collection('lessons').doc(id).set(lessonData, { merge: true });
       lessonCount += 1;
     }
 
@@ -207,8 +192,6 @@ async function main() {
   console.log('');
   console.log(`Imported ${courseCount} courses and ${lessonCount} lessons from ${exportPath}`);
   console.log(`Stats from export: ${exportData.stats?.courses ?? '?'} courses, ${exportData.stats?.lessons ?? '?'} lessons`);
-
-  await client.close();
 }
 
 main().catch((error) => {

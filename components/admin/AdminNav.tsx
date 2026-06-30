@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   AcademicCapIcon,
   DocumentTextIcon,
+  EnvelopeIcon,
   NewspaperIcon,
   UserGroupIcon,
   UsersIcon,
@@ -12,6 +13,7 @@ import {
 
 const links = [
   { href: '/dashboard/courses', label: 'Courses', icon: AcademicCapIcon },
+  { href: '/dashboard/inquiries', label: 'Inquiries', icon: EnvelopeIcon },
   { href: '/dashboard/enrollments', label: 'Enrollments', icon: UserGroupIcon },
   { href: '/dashboard/blogs', label: 'Blogs', icon: NewspaperIcon },
   { href: '/dashboard/blog-access', label: 'Blog access', icon: DocumentTextIcon },

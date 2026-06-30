@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { createBlog, updateBlog, type Blog } from '@/lib/admin-api';
 import ThumbnailUpload from '@/components/admin/ThumbnailUpload';
+import RichTextEditor from '@/components/admin/RichTextEditor';
 
 type BlogFormProps = {
   blog?: Blog;
@@ -111,12 +112,12 @@ export default function BlogForm({ blog }: BlogFormProps) {
         </div>
 
         <div className="md:col-span-2">
-          <label className={labelClass}>Content (HTML)</label>
-          <textarea
-            className={`${inputClass} min-h-[240px] font-mono text-xs`}
+          <label className={labelClass}>Content</label>
+          <RichTextEditor
             value={contentHtml}
-            onChange={(e) => setContentHtml(e.target.value)}
-            placeholder="<p>Article body...</p>"
+            onChange={setContentHtml}
+            placeholder="Write your article…"
+            minHeight="280px"
           />
         </div>
 

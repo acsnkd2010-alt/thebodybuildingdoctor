@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   AcademicCapIcon,
   DocumentTextIcon,
+  EnvelopeIcon,
   HomeIcon,
   NewspaperIcon,
   UserGroupIcon,
@@ -14,17 +15,44 @@ import {
 
 type DashboardNavProps = {
   isAdmin: boolean;
+  mediaChannelOnly?: boolean;
   userLabel?: string;
   onNavigate?: () => void;
 };
 
-const mainLinks = [
-  { href: '/dashboard', label: 'News & Articles', icon: HomeIcon, match: (path: string) => path === '/dashboard' || path.startsWith('/dashboard/articles') },
-  { href: '/profile', label: 'Profile', icon: UserIcon, match: (path: string) => path.startsWith('/profile') },
-];
+const newsLink = {
+  href: '/dashboard',
+  label: 'News & Articles',
+  icon: HomeIcon,
+  match: (path: string) =>
+    path === '/dashboard' ||
+    path.startsWith('/dashboard/articles') ||
+    path.startsWith('/dashboard/post'),
+};
+
+const learnLink = {
+  href: '/learn',
+  label: 'Courses',
+  icon: AcademicCapIcon,
+  match: (path: string) => path.startsWith('/learn'),
+};
+
+const adminCoursesLink = {
+  href: '/dashboard/courses',
+  label: 'Courses',
+  icon: AcademicCapIcon,
+  match: (path: string) => path.startsWith('/dashboard/courses'),
+};
+
+const profileLink = {
+  href: '/profile',
+  label: 'Profile',
+  icon: UserIcon,
+  match: (path: string) => path.startsWith('/profile'),
+};
 
 const adminLinks = [
-  { href: '/dashboard/courses', label: 'Courses', icon: AcademicCapIcon },
+  { href: '/dashboard/inquiries', label: 'Inquiries', icon: EnvelopeIcon },
   { href: '/dashboard/enrollments', label: 'Enrollments', icon: UserGroupIcon },
   { href: '/dashboard/blogs', label: 'Blogs', icon: NewspaperIcon },
   { href: '/dashboard/blog-access', label: 'Blog access', icon: DocumentTextIcon },
@@ -39,7 +67,12 @@ function linkClass(active: boolean) {
   }`;
 }
 
-export default function DashboardNav({ isAdmin, userLabel, onNavigate }: DashboardNavProps) {
+export default function DashboardNav({
+  isAdmin,
+  mediaChannelOnly = false,
+  userLabel,
+  onNavigate,
+}: DashboardNavProps) {
   const pathname = usePathname();
 
   function isActive(href: string, match?: (path: string) => boolean) {
@@ -47,10 +80,14 @@ export default function DashboardNav({ isAdmin, userLabel, onNavigate }: Dashboa
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
+  const menuLinks = mediaChannelOnly
+    ? [newsLink, learnLink]
+    : [newsLink, ...(isAdmin ? [adminCoursesLink] : [learnLink]), profileLink];
+
   return (
     <nav className="space-y-1 text-sm">
       <div className="px-3 py-2 mb-2 text-xs text-slate-500 uppercase tracking-wide">Menu</div>
-      {mainLinks.map(({ href, label, icon: Icon, match }) => (
+      {menuLinks.map(({ href, label, icon: Icon, match }) => (
         <Link
           key={href}
           href={href}
