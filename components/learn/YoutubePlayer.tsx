@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
-import { PlayIcon } from '@heroicons/react/24/solid';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
+import VideoControlsBar, { VIDEO_SKIP_SECONDS } from '@/components/learn/VideoControlsBar';
 import { extractYoutubeId } from '@/lib/learning/video';
 
 type YoutubePlayerProps = {
@@ -15,6 +15,8 @@ type YTPlayer = {
   pauseVideo: () => void;
   destroy: () => void;
   getPlayerState: () => number;
+  getCurrentTime: () => number;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
 };
 
 declare global {
@@ -109,10 +111,12 @@ export default function YoutubePlayer({ url, title }: YoutubePlayerProps) {
       cancelled = true;
       playerRef.current?.destroy();
       playerRef.current = null;
+      setReady(false);
+      setPlaying(false);
     };
   }, [elementId, videoId]);
 
-  function togglePlayback() {
+  const togglePlayback = useCallback(() => {
     const player = playerRef.current;
     if (!player || !window.YT) return;
 
@@ -122,36 +126,41 @@ export default function YoutubePlayer({ url, title }: YoutubePlayerProps) {
     } else {
       player.playVideo();
     }
-  }
+  }, []);
+
+  const seekRelative = useCallback((delta: number) => {
+    const player = playerRef.current;
+    if (!player) return;
+    const next = Math.max(0, player.getCurrentTime() + delta);
+    player.seekTo(next, true);
+  }, []);
+
+  const reloadVideo = useCallback(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    player.seekTo(0, true);
+    player.pauseVideo();
+    setPlaying(false);
+  }, []);
 
   if (!videoId) return null;
 
   return (
     <div
-      className="lesson-video-player relative aspect-video rounded-xl overflow-hidden border border-slate-800 bg-black select-none"
+      className="lesson-video-player rounded-xl overflow-hidden border border-slate-800 bg-black select-none"
       onContextMenu={(event) => event.preventDefault()}
     >
-      <div id={elementId} className="h-full w-full" title={title} />
-      {ready && !playing && (
-        <button
-          type="button"
-          onClick={togglePlayback}
-          className="absolute inset-0 z-10 flex items-center justify-center bg-black/35"
-          aria-label="Play video"
-        >
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/90 text-white shadow-lg">
-            <PlayIcon className="h-8 w-8 ml-1" />
-          </span>
-        </button>
-      )}
-      {ready && playing && (
-        <button
-          type="button"
-          onClick={togglePlayback}
-          className="absolute inset-0 z-10 cursor-pointer"
-          aria-label="Pause video"
-        />
-      )}
+      <div className="relative aspect-video">
+        <div id={elementId} className="h-full w-full" title={title} />
+      </div>
+      <VideoControlsBar
+        playing={playing}
+        ready={ready}
+        onPlayPause={togglePlayback}
+        onRewind={() => seekRelative(-VIDEO_SKIP_SECONDS)}
+        onForward={() => seekRelative(VIDEO_SKIP_SECONDS)}
+        onReload={reloadVideo}
+      />
     </div>
   );
 }
