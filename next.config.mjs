@@ -1,27 +1,32 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config) => {
-    config.resolve.alias['@'] = projectRoot;
-    return config;
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**'
+        hostname: '**',
       },
       {
         protocol: 'http',
-        hostname: '**'
-      }
-    ]
-  }
+        hostname: '**',
+      },
+    ],
+  },
+  webpack: (config) => {
+    config.resolve.alias['@'] = __dirname;
+    return config;
+  },
+  experimental: {
+    serverComponentsExternalPackages: ['firebase-admin', 'jwks-rsa'],
+  },
 };
 
 export default nextConfig;
-

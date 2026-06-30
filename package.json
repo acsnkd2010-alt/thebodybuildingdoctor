@@ -6,11 +6,16 @@
     "dev": "WATCHPACK_POLLING=true WATCHPACK_POLLING_INTERVAL=1000 next dev",
     "build": "next build",
     "start": "next start",
+    "clean": "rm -rf .next",
     "lint": "next lint",
-    "deploy": "rm -rf .next && npx vercel deploy --prod --yes --archive=tgz"
+    "deploy": "vercel deploy --prod --yes",
+    "firestore:seed:cloud": "node scripts/seed-mongodb.cjs",
+    "firestore:import:tutor": "node scripts/import-tutor-courses.cjs",
+    "firestore:check": "node scripts/check-firebase-connection.cjs"
   },
   "dependencies": {
     "@heroicons/react": "2.1.5",
+    "@vercel/blob": "^2.5.0",
     "autoprefixer": "10.4.19",
     "firebase": "^12.15.0",
     "firebase-admin": "^14.1.0",
@@ -21,6 +26,9 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "tailwindcss": "3.4.4"
+  },
+  "overrides": {
+    "jwks-rsa": "3.1.0"
   },
   "devDependencies": {
     "@types/node": "22.10.1",

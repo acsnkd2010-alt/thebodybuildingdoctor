@@ -1,27 +1,25 @@
 import Link from 'next/link';
 import { SparklesIcon, FireIcon, TrophyIcon } from '@heroicons/react/24/outline';
 import { getSiteInfo } from '../lib/wordpress';
+import { APP_LOGO_PATH, APP_NAME, resolveLogoUrl } from '../lib/branding';
 
 export default async function Home() {
   const siteInfo = await getSiteInfo();
+  const logoUrl = resolveLogoUrl(siteInfo.logo_url);
 
   return (
     <div className="flex h-full items-center justify-center px-4 py-10">
       <div className="max-w-2xl w-full space-y-10 text-center">
-        {siteInfo.logo_url ? (
-          <Link href="/" className="inline-block mb-2">
-            <img
-              src={siteInfo.logo_url}
-              alt={siteInfo.site_name}
-              width={200}
-              height={60}
-              className="h-14 w-auto object-contain mx-auto"
-              loading="eager"
-            />
-          </Link>
-        ) : (
-          <div className="text-lg font-semibold text-slate-300">{siteInfo.site_name}</div>
-        )}
+        <Link href="/" className="inline-block mb-2">
+          <img
+            src={logoUrl}
+            alt={siteInfo.site_name || APP_NAME}
+            width={220}
+            height={64}
+            className="h-16 w-auto object-contain mx-auto"
+            loading="eager"
+          />
+        </Link>
         <div className="space-y-4">
           <div className="pill mx-auto flex items-center gap-2">
             <SparklesIcon className="w-3 h-3" />
@@ -31,8 +29,8 @@ export default async function Home() {
             Elite Bodybuilding Content
           </h1>
           <p className="text-slate-300 text-base md:text-lg max-w-xl mx-auto">
-            Exclusive training breakdowns, posing tutorials, and prep insights
-            powered by our WordPress media channel.
+            Training content, insights, and updates for club members. Manage courses,
+            enrollments, and articles from the admin dashboard.
           </p>
         </div>
 
@@ -57,7 +55,7 @@ export default async function Home() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href="/login"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-8 py-3 text-sm font-semibold text-slate-950 shadow-soft-glow hover:bg-accent/90 transition transform hover:scale-105"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-8 py-3 text-sm font-semibold text-white shadow-soft-glow hover:bg-accent/90 transition transform hover:scale-105"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />

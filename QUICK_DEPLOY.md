@@ -11,8 +11,6 @@ cd /Users/sumersinghharawat/Workspaces/Clients/thebodybuildingdoctor
 
 ## Step 2: Initialize Git (Optional but Recommended)
 
-
-
 ```bash
 git init
 git add .

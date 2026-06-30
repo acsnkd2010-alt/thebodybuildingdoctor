@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 
-import { ALLOWED_APP_ROLES, hasAppAccess, parseRoles } from './roles';
+import { ADMIN_ROLES, hasAppAccess, parseRoles } from './roles';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -41,7 +41,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       username: payload.username ? String(payload.username) : undefined,
       name: payload.name ? String(payload.name) : undefined,
       roles,
-      role: roles.find((role) => ALLOWED_APP_ROLES.includes(role as (typeof ALLOWED_APP_ROLES)[number])),
+      role: roles.find((role) => ADMIN_ROLES.includes(role as (typeof ADMIN_ROLES)[number])),
     };
   } catch {
     return null;

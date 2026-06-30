@@ -1,7 +1,13 @@
-/** Roles that may access the media channel web app (Firebase custom claims). */
-export const ALLOWED_APP_ROLES = ['media_channel', 'administrator'] as const;
+/** Roles that may sign in to the web admin app. */
+export const ADMIN_ROLES = ['administrator', 'admin', 'lms_manager'] as const;
 
-export type AppRole = (typeof ALLOWED_APP_ROLES)[number];
+/** Firebase roles that grant mobile blog access without an explicit blog_access grant. */
+export const BLOG_ACCESS_ROLES = ['media_channel'] as const;
+
+/** @deprecated Use ADMIN_ROLES — web login is admin-only. */
+export const ALLOWED_APP_ROLES = ADMIN_ROLES;
+
+export type AdminRole = (typeof ADMIN_ROLES)[number];
 
 export function parseRoles(raw: unknown): string[] {
   if (!raw) return [];
@@ -15,10 +21,20 @@ export function parseRoles(raw: unknown): string[] {
   return [];
 }
 
+export function isAdmin(roles: string[]): boolean {
+  return roles.some((role) => ADMIN_ROLES.includes(role as AdminRole));
+}
+
 export function hasAppAccess(roles: string[]): boolean {
-  return roles.some((role) => ALLOWED_APP_ROLES.includes(role as AppRole));
+  return isAdmin(roles);
 }
 
 export function primaryAppRole(roles: string[]): string | undefined {
-  return roles.find((role) => ALLOWED_APP_ROLES.includes(role as AppRole));
+  return roles.find((role) => ADMIN_ROLES.includes(role as AdminRole));
+}
+
+export function hasBlogRoleAccess(roles: string[]): boolean {
+  return roles.some((role) =>
+    BLOG_ACCESS_ROLES.includes(role as (typeof BLOG_ACCESS_ROLES)[number]),
+  );
 }

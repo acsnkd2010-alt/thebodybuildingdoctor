@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SignJWT } from 'jose';
-import { cookies } from 'next/headers';
 
-import { hasAppAccess, parseRoles, primaryAppRole } from '../../../../lib/auth/roles';
-import { getFirebaseAdminAuth } from '../../../../lib/firebase/admin';
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { createWebSessionFromIdToken } from '@/lib/auth/create-web-session';
 
 /** Creates a session after Firebase registration (same role checks as login). */
 export async function POST(request: NextRequest) {
@@ -17,72 +12,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Missing authentication token' }, { status: 400 });
     }
 
-    if (!JWT_SECRET) {
-      return NextResponse.json({ message: 'JWT secret not configured' }, { status: 500 });
-    }
-
-    const adminAuth = getFirebaseAdminAuth();
-    let decoded;
-
-    try {
-      decoded = await adminAuth.verifyIdToken(idToken);
-    } catch {
-      return NextResponse.json({ message: 'Invalid or expired credentials' }, { status: 401 });
-    }
-
-    const fbUser = await adminAuth.getUser(decoded.uid);
-    const claims = fbUser.customClaims || {};
-    const roles = parseRoles(claims.roles);
-
-    if (!hasAppAccess(roles)) {
+    const result = await createWebSessionFromIdToken(idToken);
+    if (!result.ok) {
+      const message =
+        result.code === 'INSUFFICIENT_PERMISSIONS'
+          ? 'Account created, but administrator access must be assigned by an existing admin.'
+          : result.message;
       return NextResponse.json(
-        {
-          message:
-            'Account created, but Media Channel access requires an administrator to assign your role.',
-          code: 'INSUFFICIENT_PERMISSIONS',
-        },
-        { status: 403 }
+        { message, code: result.code },
+        { status: result.status },
       );
     }
 
-    const wordpressId = claims.wordpressId != null ? Number(claims.wordpressId) : 0;
-    const role = primaryAppRole(roles) || '';
-    const email = fbUser.email || decoded.email || '';
-    const name = fbUser.displayName || undefined;
-
-    const secret = new TextEncoder().encode(JWT_SECRET);
-    const token = await new SignJWT({
-      uid: fbUser.uid,
-      id: wordpressId,
-      email,
-      name,
-      roles,
-      role,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('30d')
-      .sign(secret);
-
-    const cookieStore = await cookies();
-    cookieStore.set('session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    });
-
-    return NextResponse.json({
-      success: true,
-      user: {
-        uid: fbUser.uid,
-        id: wordpressId,
-        email,
-        name,
-        roles,
-        role,
-      },
-    });
+    return NextResponse.json({ success: true, user: result.user });
   } catch (error: unknown) {
     console.error('Registration error:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
