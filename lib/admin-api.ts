@@ -131,6 +131,13 @@ export function deleteLesson(courseId: string, lessonId: string) {
   );
 }
 
+export function reorderLessons(courseId: string, lessonIds: string[]) {
+  return adminFetch<{ lessons: Lesson[] }>(`/api/admin/courses/${courseId}/lessons/reorder`, {
+    method: 'PATCH',
+    body: JSON.stringify({ lessonIds }),
+  });
+}
+
 export function fetchEnrollments(params?: { uid?: string; courseId?: string }) {
   const search = new URLSearchParams();
   if (params?.uid) search.set('uid', params.uid);

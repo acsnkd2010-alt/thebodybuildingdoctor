@@ -183,3 +183,41 @@ export async function deleteLesson(lessonId: string, courseId: string) {
   await syncCourseStats(courseId);
   return true;
 }
+
+/** Set lesson order from an ordered list of lesson IDs (1-based). */
+export async function reorderLessons(courseId: string, lessonIds: string[]) {
+  const db = await getMongoDb();
+  const course = await getCourseById(courseId);
+  if (!course) throw new Error('Course not found');
+
+  const existing = await getCourseLessons(courseId);
+  const existingIds = new Set(existing.map((lesson) => lesson.id));
+
+  if (lessonIds.length !== existing.length) {
+    throw new Error('Lesson list must include every lesson in the course');
+  }
+
+  const unique = new Set(lessonIds);
+  if (unique.size !== lessonIds.length) {
+    throw new Error('Duplicate lesson IDs in reorder request');
+  }
+
+  for (const id of lessonIds) {
+    if (!existingIds.has(id)) {
+      throw new Error(`Lesson not found in course: ${id}`);
+    }
+  }
+
+  const ops = lessonIds.map((lessonId, index) => ({
+    updateOne: {
+      filter: { _id: lessonId as never, courseId },
+      update: { $set: { order: index + 1 } },
+    },
+  }));
+
+  if (ops.length > 0) {
+    await db.collection<LessonDoc>('lessons').bulkWrite(ops);
+  }
+
+  return getCourseLessons(courseId);
+}
