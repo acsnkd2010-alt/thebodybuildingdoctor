@@ -7,6 +7,7 @@ interface SiteLogoProps {
   siteName: string;
   siteDescription?: string;
   variant?: 'sidebar' | 'header';
+  href?: string;
 }
 
 export default function SiteLogo({
@@ -14,8 +15,8 @@ export default function SiteLogo({
   siteName,
   siteDescription,
   variant = 'sidebar',
+  href = '/dashboard',
 }: SiteLogoProps) {
-  const href = '/dashboard';
   const src = logoUrl?.trim() || APP_LOGO_PATH;
 
   if (variant === 'header') {

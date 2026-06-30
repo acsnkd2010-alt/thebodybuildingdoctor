@@ -15,9 +15,7 @@ export default async function MarketingLayout({ children }: { children: ReactNod
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <Link href="/" className="shrink-0">
-            <SiteLogo logoUrl={logoUrl} siteName={siteName} variant="header" />
-          </Link>
+          <SiteLogo logoUrl={logoUrl} siteName={siteName} variant="header" href="/" />
           <nav className="hidden sm:flex items-center gap-6 text-sm text-slate-300">
             <a href="#about" className="hover:text-white transition">
               About
