@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import VideoControlsBar, { VIDEO_SKIP_SECONDS } from '@/components/learn/VideoControlsBar';
-import { extractYoutubeId } from '@/lib/learning/video';
+
+const YOUTUBE_NOCOOKIE_HOST = 'https://www.youtube-nocookie.com';
 
 type YoutubePlayerProps = {
-  url: string;
+  videoId: string;
   title: string;
 };
 
@@ -26,6 +27,7 @@ declare global {
         elementId: string,
         options: {
           videoId: string;
+          host?: string;
           playerVars?: Record<string, number | string>;
           events?: {
             onReady?: () => void;
@@ -65,8 +67,7 @@ function loadYoutubeIframeApi() {
   return youtubeApiPromise;
 }
 
-export default function YoutubePlayer({ url, title }: YoutubePlayerProps) {
-  const videoId = extractYoutubeId(url);
+export default function YoutubePlayer({ videoId, title }: YoutubePlayerProps) {
   const elementId = useId().replace(/:/g, '');
   const playerRef = useRef<YTPlayer | null>(null);
   const [ready, setReady] = useState(false);
@@ -83,6 +84,7 @@ export default function YoutubePlayer({ url, title }: YoutubePlayerProps) {
       playerRef.current?.destroy();
 
       playerRef.current = new window.YT.Player(elementId, {
+        host: YOUTUBE_NOCOOKIE_HOST,
         videoId,
         playerVars: {
           autoplay: 0,
@@ -93,6 +95,7 @@ export default function YoutubePlayer({ url, title }: YoutubePlayerProps) {
           disablekb: 1,
           iv_load_policy: 3,
           playsinline: 1,
+          cc_load_policy: 3,
           origin: window.location.origin,
         },
         events: {
@@ -149,9 +152,15 @@ export default function YoutubePlayer({ url, title }: YoutubePlayerProps) {
     <div
       className="lesson-video-player rounded-xl overflow-hidden border border-slate-800 bg-black select-none"
       onContextMenu={(event) => event.preventDefault()}
+      onDragStart={(event) => event.preventDefault()}
     >
       <div className="relative aspect-video">
-        <div id={elementId} className="h-full w-full" title={title} />
+        <div id={elementId} className="lesson-video-youtube-embed h-full w-full" title={title} />
+        <div
+          className="absolute inset-0 z-10"
+          aria-hidden
+          onContextMenu={(event) => event.preventDefault()}
+        />
       </div>
       <VideoControlsBar
         playing={playing}

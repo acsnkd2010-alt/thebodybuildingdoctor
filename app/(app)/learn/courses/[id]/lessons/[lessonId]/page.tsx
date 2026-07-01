@@ -57,7 +57,12 @@ export default async function LearnLessonPage({
     <LessonPlayerView
       courseId={course.id}
       courseTitle={course.title}
-      lesson={lesson}
+      lesson={{
+        id: lesson.id,
+        title: lesson.title,
+        durationSec: lesson.durationSec,
+        contentHtml: lesson.contentHtml,
+      }}
       prevLesson={prevLesson}
       nextLesson={nextLesson}
     />

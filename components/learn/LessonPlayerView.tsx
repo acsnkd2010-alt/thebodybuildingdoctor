@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
-import VideoPlayer from '@/components/learn/VideoPlayer';
+import LessonVideoPlayer from '@/components/learn/LessonVideoPlayer';
 import { formatDuration } from '@/lib/learning/format';
 
 type LessonNav = {
@@ -16,7 +16,6 @@ type LessonPlayerProps = {
     id: string;
     title: string;
     durationSec: number;
-    videoUrl: string;
     contentHtml?: string;
   };
   prevLesson: LessonNav;
@@ -45,7 +44,7 @@ export default function LessonPlayerView({
           <p className="text-sm text-slate-500 mt-1">{formatDuration(lesson.durationSec)}</p>
         </div>
 
-        <VideoPlayer url={lesson.videoUrl} title={lesson.title} />
+        <LessonVideoPlayer courseId={courseId} lessonId={lesson.id} title={lesson.title} />
 
         {lesson.contentHtml && (
           <div

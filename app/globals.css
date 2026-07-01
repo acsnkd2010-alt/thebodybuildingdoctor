@@ -47,8 +47,13 @@ body {
   content: attr(data-placeholder);
 }
 
-/* Lesson player — reduce native video download / PiP affordances where supported */
+/* Lesson player — block native download UI and direct iframe interaction */
 .lesson-video-player video::-webkit-media-controls-enclosure {
   overflow: hidden;
+}
+
+.lesson-video-player .lesson-video-youtube-embed iframe,
+.lesson-video-player .lesson-video-vimeo-embed {
+  pointer-events: none;
 }
 

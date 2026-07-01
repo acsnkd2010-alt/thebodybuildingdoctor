@@ -4,15 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import VideoControlsBar, { VIDEO_SKIP_SECONDS } from '@/components/learn/VideoControlsBar';
 import YoutubePlayer from '@/components/learn/YoutubePlayer';
-import {
-  isDirectVideoUrl,
-  isVimeoUrl,
-  isYoutubeUrl,
-  vimeoEmbedUrl,
-} from '@/lib/learning/video';
+import type { PlaybackConfig } from '@/lib/learning/playback';
+import { vimeoEmbedUrl } from '@/lib/learning/video';
 
 type VideoPlayerProps = {
-  url: string;
+  playback: PlaybackConfig;
   title: string;
 };
 
@@ -67,8 +63,8 @@ function loadVimeoPlayerApi() {
   return vimeoApiPromise;
 }
 
-function VimeoPlayer({ url, title }: { url: string; title: string }) {
-  const embed = vimeoEmbedUrl(url);
+function VimeoPlayer({ vimeoId, title }: { vimeoId: string; title: string }) {
+  const embed = vimeoEmbedUrl(`https://vimeo.com/${vimeoId}`);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerRef = useRef<VimeoPlayerApi | null>(null);
   const [ready, setReady] = useState(false);
@@ -143,17 +139,23 @@ function VimeoPlayer({ url, title }: { url: string; title: string }) {
     <div
       className="lesson-video-player rounded-xl overflow-hidden border border-slate-800 bg-black select-none"
       onContextMenu={blockContextMenu}
+      onDragStart={(event) => event.preventDefault()}
     >
       <div className="relative aspect-video">
         <iframe
           ref={iframeRef}
           src={embed}
           title={title}
-          className="h-full w-full border-0"
+          className="lesson-video-vimeo-embed h-full w-full border-0"
           loading="lazy"
           referrerPolicy="strict-origin-when-cross-origin"
           allow="autoplay; encrypted-media"
           sandbox="allow-scripts allow-same-origin allow-presentation"
+        />
+        <div
+          className="absolute inset-0 z-10"
+          aria-hidden
+          onContextMenu={(event) => event.preventDefault()}
         />
       </div>
       <VideoControlsBar
@@ -168,7 +170,7 @@ function VimeoPlayer({ url, title }: { url: string; title: string }) {
   );
 }
 
-function DirectVideoPlayer({ url, title }: { url: string; title: string }) {
+function DirectVideoPlayer({ playbackUrl, title }: { playbackUrl: string; title: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -201,6 +203,7 @@ function DirectVideoPlayer({ url, title }: { url: string; title: string }) {
     <div
       className="lesson-video-player rounded-xl overflow-hidden border border-slate-800 bg-black select-none"
       onContextMenu={blockContextMenu}
+      onDragStart={(event) => event.preventDefault()}
     >
       <div className="relative aspect-video">
         <video
@@ -215,7 +218,7 @@ function DirectVideoPlayer({ url, title }: { url: string; title: string }) {
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
           className="h-full w-full"
-          src={url}
+          src={playbackUrl}
           title={title}
         >
           <track kind="captions" />
@@ -233,30 +236,14 @@ function DirectVideoPlayer({ url, title }: { url: string; title: string }) {
   );
 }
 
-export default function VideoPlayer({ url, title }: VideoPlayerProps) {
-  if (!url) {
-    return (
-      <div className="aspect-video rounded-xl border border-slate-800 bg-slate-900 flex items-center justify-center text-sm text-slate-500">
-        No video for this lesson
-      </div>
-    );
+export default function VideoPlayer({ playback, title }: VideoPlayerProps) {
+  if (playback.provider === 'youtube') {
+    return <YoutubePlayer videoId={playback.videoId} title={title} />;
   }
 
-  if (isYoutubeUrl(url)) {
-    return <YoutubePlayer url={url} title={title} />;
+  if (playback.provider === 'vimeo') {
+    return <VimeoPlayer vimeoId={playback.vimeoId} title={title} />;
   }
 
-  if (isVimeoUrl(url)) {
-    return <VimeoPlayer url={url} title={title} />;
-  }
-
-  if (isDirectVideoUrl(url) || url.startsWith('http')) {
-    return <DirectVideoPlayer url={url} title={title} />;
-  }
-
-  return (
-    <div className="aspect-video rounded-xl border border-slate-800 bg-slate-900 flex items-center justify-center p-6 text-center text-sm text-slate-400">
-      This video cannot be played here. Contact your coach if the problem continues.
-    </div>
-  );
+  return <DirectVideoPlayer playbackUrl={playback.playbackUrl} title={title} />;
 }
